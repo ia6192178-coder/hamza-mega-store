@@ -4,7 +4,7 @@ import ProductCard, { Stars } from '@/components/ProductCard';
 import ProductDetailActions from '@/components/ProductDetailActions';
 import { slugifyCategory } from '@/lib/categories';
 import { getProduct, getProductsByCategory, getSettings } from '@/lib/db';
-import { discountPercent, formatRs } from '@/lib/types';
+import { productHasVariants, productSoldOut, variantBestDiscount } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,8 +23,9 @@ export default async function ProductPage({
     (p) => p.id !== product.id,
   );
 
-  const off = discountPercent(product);
-  const soldOut = product.is_sold_out || product.stock <= 0;
+  // Image badges use the best variant discount (or the base discount).
+  const off = variantBestDiscount(product);
+  const soldOut = productSoldOut(product);
 
   return (
     <div className="page-wrap">
@@ -47,22 +48,19 @@ export default async function ProductPage({
           <span className="pc-cat">{product.category}</span>
           <h1>{product.name}</h1>
           <Stars rating={product.rating} />
-          <div className="detail-price-row">
-            <span className="detail-price">{formatRs(product.price)}</span>
-            {product.old_price && product.old_price > product.price && (
-              <span className="detail-old">{formatRs(product.old_price)}</span>
-            )}
-            {off !== null && <span className="detail-off">Save {off}%</span>}
-          </div>
-          <p className="detail-desc">{product.description}</p>
-          <p className={`detail-stock ${soldOut ? 'out' : 'in'}`}>
-            {soldOut
-              ? 'Out of stock'
-              : product.stock <= 5
-                ? `Only ${product.stock} left in stock — order soon`
-                : 'In stock'}
-          </p>
+          {productHasVariants(product) && (
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--muted)' }}>
+              Available in {product.variants!.length}{' '}
+              {product.variant_label
+                ? product.variant_label.toLowerCase()
+                : 'option'}
+              {product.variants!.length > 1 ? 's' : ''} — select one below.
+            </p>
+          )}
 
+          {/* Price, description, stock, variant selector and cart buttons —
+              all live inside ProductDetailActions so they follow the
+              selected variant. */}
           <ProductDetailActions product={product} />
 
           <div className="detail-meta">

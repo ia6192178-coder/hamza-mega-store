@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { CATEGORIES } from '@/lib/categories';
 import type { Product } from '@/lib/types';
-import { formatRs } from '@/lib/types';
+import { formatRs, productHasVariants, productTotalStock } from '@/lib/types';
 
 type FormState = {
   name: string;
@@ -19,7 +19,25 @@ type FormState = {
   is_best_seller: boolean;
   is_clearance: boolean;
   is_sold_out: boolean;
+  // Option name for variants (e.g. 'Size', 'Color', 'Weight'). Empty means
+  // a simple product with one price and one stock.
+  variant_label: string;
 };
+
+// One editable variant row in the form (all strings, parsed on save).
+type VariantRow = {
+  label: string;
+  price: string;
+  old_price: string;
+  stock: string;
+};
+
+const emptyVariantRow = (): VariantRow => ({
+  label: '',
+  price: '',
+  old_price: '',
+  stock: '10',
+});
 
 const emptyForm: FormState = {
   name: '',
@@ -34,6 +52,7 @@ const emptyForm: FormState = {
   is_best_seller: false,
   is_clearance: false,
   is_sold_out: false,
+  variant_label: '',
 };
 
 function formFromProduct(p: Product): FormState {
@@ -50,7 +69,18 @@ function formFromProduct(p: Product): FormState {
     is_best_seller: p.is_best_seller,
     is_clearance: p.is_clearance,
     is_sold_out: p.is_sold_out,
+    variant_label: p.variant_label ?? '',
   };
+}
+
+function rowsFromProduct(p: Product): VariantRow[] {
+  if (!productHasVariants(p)) return [];
+  return (p.variants ?? []).map((v) => ({
+    label: v.label,
+    price: String(v.price),
+    old_price: v.old_price ? String(v.old_price) : '',
+    stock: String(v.stock),
+  }));
 }
 
 export default function AdminProductsClient({
@@ -64,6 +94,7 @@ export default function AdminProductsClient({
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [variantRows, setVariantRows] = useState<VariantRow[]>([]);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [listError, setListError] = useState('');
@@ -80,6 +111,7 @@ export default function AdminProductsClient({
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
+    setVariantRows([]);
     setFormError('');
     setShowForm(true);
   };
@@ -87,12 +119,23 @@ export default function AdminProductsClient({
   const openEdit = (p: Product) => {
     setEditing(p);
     setForm(formFromProduct(p));
+    setVariantRows(rowsFromProduct(p));
     setFormError('');
     setShowForm(true);
   };
 
   const set = (key: keyof FormState, value: string | boolean) =>
     setForm((f) => ({ ...f, [key]: value }));
+
+  const setVariantRow = (index: number, key: keyof VariantRow, value: string) =>
+    setVariantRows((rows) =>
+      rows.map((r, i) => (i === index ? { ...r, [key]: value } : r)),
+    );
+
+  const addVariantRow = () => setVariantRows((rows) => [...rows, emptyVariantRow()]);
+
+  const removeVariantRow = (index: number) =>
+    setVariantRows((rows) => rows.filter((_, i) => i !== index));
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,6 +153,34 @@ export default function AdminProductsClient({
       return setFormError('Stock must be 0 or more.');
     if (!Number.isFinite(rating) || rating < 0 || rating > 5)
       return setFormError('Rating must be between 0 and 5.');
+
+    // Variants: an option name with no rows (or invalid rows) is an error.
+    // Without an option name the product stays simple — rows are ignored.
+    const variantLabel = form.variant_label.trim();
+    const variants: { label: string; price: number; old_price: number | null; stock: number }[] = [];
+    if (variantLabel) {
+      const filled = variantRows.filter(
+        (r) => r.label.trim() || r.price.trim(),
+      );
+      if (filled.length === 0)
+        return setFormError(
+          'You set an option name — add at least one variant row, or clear the option name.',
+        );
+      for (const r of filled) {
+        const label = r.label.trim();
+        const vPrice = Number(r.price);
+        const vOld = r.old_price.trim() ? Number(r.old_price) : null;
+        const vStock = Number(r.stock);
+        if (!label) return setFormError('Every variant needs a value (e.g. UK 9).');
+        if (!Number.isFinite(vPrice) || vPrice <= 0)
+          return setFormError(`Variant "${label}" needs a price greater than 0.`);
+        if (vOld !== null && (!Number.isFinite(vOld) || vOld < 0))
+          return setFormError(`Variant "${label}" has an invalid old price.`);
+        if (!Number.isFinite(vStock) || vStock < 0)
+          return setFormError(`Variant "${label}" needs stock of 0 or more.`);
+        variants.push({ label, price: vPrice, old_price: vOld, stock: vStock });
+      }
+    }
 
     setSaving(true);
     try {
@@ -131,6 +202,8 @@ export default function AdminProductsClient({
             is_best_seller: form.is_best_seller,
             is_clearance: form.is_clearance,
             is_sold_out: form.is_sold_out,
+            variant_label: variantLabel || null,
+            variants,
           }),
         },
       );
@@ -217,11 +290,29 @@ export default function AdminProductsClient({
                   <span style={{ color: 'var(--muted)', fontSize: 12 }}>
                     ★ {Number(p.rating).toFixed(1)}
                   </span>
+                  {productHasVariants(p) && (
+                    <>
+                      <br />
+                      <span style={{ color: 'var(--red)', fontSize: 12, fontWeight: 700 }}>
+                        {p.variant_label ?? 'Option'}: {p.variants!.length} option
+                        {p.variants!.length > 1 ? 's' : ''}
+                      </span>
+                    </>
+                  )}
                 </td>
                 <td>{p.category}</td>
                 <td>
-                  <strong>{formatRs(p.price)}</strong>
-                  {p.old_price && p.old_price > p.price && (
+                  <strong>
+                    {productHasVariants(p) ? 'From ' : ''}
+                    {formatRs(
+                      productHasVariants(p)
+                        ? Math.min(...p.variants!.map((v) => v.price))
+                        : p.price,
+                    )}
+                  </strong>
+                  {!productHasVariants(p) &&
+                    p.old_price &&
+                    p.old_price > p.price && (
                     <>
                       <br />
                       <span
@@ -236,7 +327,15 @@ export default function AdminProductsClient({
                     </>
                   )}
                 </td>
-                <td>{p.stock}</td>
+                <td>
+                  {productTotalStock(p)}
+                  {productHasVariants(p) && (
+                    <span style={{ color: 'var(--muted)', fontSize: 12 }}>
+                      {' '}
+                      (total)
+                    </span>
+                  )}
+                </td>
                 <td style={{ fontSize: 12 }}>
                   {[
                     p.is_new && 'NEW',
@@ -375,6 +474,95 @@ export default function AdminProductsClient({
                   onChange={(e) => set('stock', e.target.value)}
                 />
               </div>
+
+              <div className="form-field variant-section">
+                <label>Variant Option Name (optional)</label>
+                <input
+                  className="input"
+                  value={form.variant_label}
+                  onChange={(e) => set('variant_label', e.target.value)}
+                  placeholder="e.g. Size, Color or Weight — leave empty for a simple product"
+                />
+                <p className="variant-hint">
+                  For products sold in options — shoe sizes, colours, weights.
+                  Each option gets its own price and stock, and customers pick
+                  one on the product page. The Price above is used only when
+                  there are no variants.
+                </p>
+              </div>
+
+              {form.variant_label.trim() && (
+                <div className="form-field">
+                  <label>
+                    Variants — {form.variant_label.trim()} options
+                  </label>
+                  <div className="variant-rows-head">
+                    <span>Value *</span>
+                    <span>Price (Rs) *</span>
+                    <span>Old Price</span>
+                    <span>Stock</span>
+                    <span />
+                  </div>
+                  {variantRows.map((row, i) => (
+                    <div key={i} className="variant-row">
+                      <input
+                        className="input"
+                        value={row.label}
+                        onChange={(e) =>
+                          setVariantRow(i, 'label', e.target.value)
+                        }
+                        placeholder="e.g. UK 9"
+                      />
+                      <input
+                        className="input"
+                        type="number"
+                        min="1"
+                        value={row.price}
+                        onChange={(e) =>
+                          setVariantRow(i, 'price', e.target.value)
+                        }
+                        placeholder="3599"
+                      />
+                      <input
+                        className="input"
+                        type="number"
+                        min="0"
+                        value={row.old_price}
+                        onChange={(e) =>
+                          setVariantRow(i, 'old_price', e.target.value)
+                        }
+                        placeholder="—"
+                      />
+                      <input
+                        className="input"
+                        type="number"
+                        min="0"
+                        value={row.stock}
+                        onChange={(e) =>
+                          setVariantRow(i, 'stock', e.target.value)
+                        }
+                        placeholder="10"
+                      />
+                      <button
+                        type="button"
+                        className="variant-remove"
+                        onClick={() => removeVariantRow(i)}
+                        aria-label="Remove this variant"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn-outline btn-small"
+                    onClick={addVariantRow}
+                    style={{ marginTop: 8 }}
+                  >
+                    + Add Variant
+                  </button>
+                </div>
+              )}
 
               <div className="checkbox-row">
                 <label>

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { Settings } from '@/lib/types';
 import { formatRs } from '@/lib/types';
-import { useCart } from '@/components/CartContext';
+import { itemKey, lineName, linePrice, useCart } from '@/components/CartContext';
 
 type PlacedOrder = {
   order_number: string;
@@ -72,7 +72,12 @@ export default function CheckoutForm({ settings }: { settings: Settings }) {
           phone: phone.trim(),
           city: city.trim(),
           address: address.trim(),
-          items: items.map((i) => ({ product_id: i.product.id, quantity: i.qty })),
+          items: items.map((i) => ({
+            product_id: i.product.id,
+            quantity: i.qty,
+            // The server re-checks the variant and its price in the database.
+            variant_id: i.variant ? i.variant.id : null,
+          })),
         }),
       });
       const data = await res.json();
@@ -245,12 +250,12 @@ export default function CheckoutForm({ settings }: { settings: Settings }) {
           <h3 style={{ margin: '0 0 12px', color: 'var(--navy)' }}>
             Order Summary
           </h3>
-          {items.map(({ product, qty }) => (
-            <div key={product.id} className="order-item-line">
+          {items.map((item) => (
+            <div key={itemKey(item)} className="order-item-line">
               <span>
-                {product.name} × {qty}
+                {lineName(item)} × {item.qty}
               </span>
-              <strong>{formatRs(product.price * qty)}</strong>
+              <strong>{formatRs(linePrice(item) * item.qty)}</strong>
             </div>
           ))}
           <div

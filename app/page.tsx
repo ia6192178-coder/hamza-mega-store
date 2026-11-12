@@ -4,6 +4,7 @@ import ProductCard from '@/components/ProductCard';
 import { CATEGORIES, slugifyCategory } from '@/lib/categories';
 import { getProducts, getSettings } from '@/lib/db';
 import type { Product } from '@/lib/types';
+import { productMinPrice } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,7 @@ export default async function HomePage() {
   const [products, settings] = await Promise.all([getProducts(), getSettings()]);
 
   const newArrivals = products.filter((p) => p.is_new);
-  const budget = products.filter((p) => p.price < 499);
+  const budget = products.filter((p) => productMinPrice(p) < 499);
   const clearance = products.filter((p) => p.is_clearance);
   const bestSellers = products.filter((p) => p.is_best_seller);
 

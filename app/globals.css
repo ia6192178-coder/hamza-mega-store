@@ -1800,3 +1800,128 @@ textarea.input {
     font-size: 22px;
   }
 }
+
+/* ---------- Product variants (storefront) ---------- */
+
+.pc-from {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.variant-selector {
+  margin: 14px 0 4px;
+}
+
+.variant-label {
+  display: block;
+  font-size: 14px;
+  color: var(--navy);
+  margin-bottom: 8px;
+}
+
+.variant-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.variant-btn {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.variant-btn:hover:not(:disabled) {
+  border-color: var(--navy);
+}
+
+.variant-btn.selected {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+}
+
+.variant-btn.out {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/* ---------- Product variants (admin form) ---------- */
+
+.variant-section {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+
+.variant-hint {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.variant-rows-head,
+.variant-row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 0.8fr 32px;
+  gap: 8px;
+  align-items: center;
+}
+
+.variant-rows-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.variant-row {
+  margin-bottom: 8px;
+}
+
+.variant-row .input {
+  min-width: 0;
+}
+
+.variant-remove {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: #fdecea;
+  color: var(--red);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.variant-remove:hover {
+  background: #fbd5d1;
+}
+
+@media (max-width: 640px) {
+  .variant-rows-head {
+    display: none;
+  }
+
+  .variant-row {
+    grid-template-columns: 1fr 1fr;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+  }
+
+  .variant-remove {
+    grid-column: span 2;
+    width: 100%;
+  }
+}

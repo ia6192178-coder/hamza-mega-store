@@ -1,7 +1,13 @@
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 import { isAdminLoggedIn } from '@/lib/admin';
-import { getProducts, hasDb, mapProduct } from '@/lib/db';
+import {
+  ensureVariantSchema,
+  getProduct,
+  getProducts,
+  hasDb,
+  saveProductVariants,
+} from '@/lib/db';
 import { parseProductBody } from '@/lib/product-input';
 
 export const dynamic = 'force-dynamic';
@@ -38,18 +44,21 @@ export async function POST(req: Request) {
     const { rows } = await sql`
       INSERT INTO products
         (name, category, price, old_price, description, image_url, stock,
-         is_new, is_best_seller, is_clearance, is_sold_out, rating)
+         is_new, is_best_seller, is_clearance, is_sold_out, rating, variant_label)
       VALUES
         (${product.name}, ${product.category}, ${product.price}, ${product.old_price},
          ${product.description}, ${product.image_url}, ${product.stock},
          ${product.is_new}, ${product.is_best_seller}, ${product.is_clearance},
-         ${product.is_sold_out}, ${product.rating})
-      RETURNING *
+         ${product.is_sold_out}, ${product.rating}, ${product.variant_label})
+      RETURNING id
     `;
-    return NextResponse.json(
-      { ok: true, product: mapProduct(rows[0] as Record<string, unknown>) },
-      { status: 201 },
-    );
+    const newId = Number(rows[0].id);
+    // Make sure the variants table exists (in case /api/seed was not run
+    // after the update), then save the variant rows.
+    await ensureVariantSchema();
+    await saveProductVariants(newId, product.variants);
+    const created = await getProduct(newId);
+    return NextResponse.json({ ok: true, product: created }, { status: 201 });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Could not add the product.' },

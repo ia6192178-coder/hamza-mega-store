@@ -90,7 +90,9 @@ export default function AdminOrdersClient({
           {(o.items ?? []).map((item) => (
             <div key={item.id} className="order-item-line">
               <span>
-                {item.product_name} × {item.quantity}
+                {item.product_name}
+                {item.variant_label ? ` — ${item.variant_label}` : ''} ×{' '}
+                {item.quantity}
               </span>
               <strong>{formatRs(item.price * item.quantity)}</strong>
             </div>

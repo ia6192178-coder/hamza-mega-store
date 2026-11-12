@@ -3,7 +3,14 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Product } from '@/lib/types';
-import { discountPercent, formatRs } from '@/lib/types';
+import {
+  discountPercent,
+  formatRs,
+  productHasVariants,
+  productMinPrice,
+  productSoldOut,
+  variantBestDiscount,
+} from '@/lib/types';
 import { useCart } from './CartContext';
 
 export function Stars({ rating }: { rating: number }) {
@@ -20,8 +27,12 @@ export function Stars({ rating }: { rating: number }) {
 export default function ProductCard({ product }: { product: Product }) {
   const { addItem, openDrawer } = useCart();
   const router = useRouter();
-  const off = discountPercent(product);
-  const soldOut = product.is_sold_out || product.stock <= 0;
+  const hasVariants = productHasVariants(product);
+  // For variant products the badge uses the best variant discount and the
+  // price shown is the lowest variant price ("From Rs …").
+  const off = hasVariants ? variantBestDiscount(product) : discountPercent(product);
+  const soldOut = productSoldOut(product);
+  const displayPrice = hasVariants ? productMinPrice(product) : product.price;
 
   const handleAdd = () => {
     addItem(product);
@@ -56,27 +67,44 @@ export default function ProductCard({ product }: { product: Product }) {
         </Link>
         <Stars rating={product.rating} />
         <div className="pc-price-row">
-          <span className="pc-price">{formatRs(product.price)}</span>
-          {product.old_price && product.old_price > product.price && (
+          <span className="pc-price">
+            {hasVariants && (
+              <span className="pc-from">From&nbsp;</span>
+            )}
+            {formatRs(displayPrice)}
+          </span>
+          {!hasVariants && product.old_price && product.old_price > product.price && (
             <span className="pc-old">{formatRs(product.old_price)}</span>
           )}
         </div>
-        <div className="pc-actions">
-          <button
-            className="btn-navy"
-            onClick={handleAdd}
-            disabled={soldOut}
-          >
-            ADD TO CART
-          </button>
-          <button
-            className="btn-red"
-            onClick={handleBuyNow}
-            disabled={soldOut}
-          >
-            BUY NOW
-          </button>
-        </div>
+        {hasVariants ? (
+          <div className="pc-actions">
+            <Link
+              href={`/product/${product.id}`}
+              className="btn-navy btn-block"
+              style={{ textAlign: 'center' }}
+            >
+              SELECT {product.variant_label ? product.variant_label.toUpperCase() : 'OPTION'}
+            </Link>
+          </div>
+        ) : (
+          <div className="pc-actions">
+            <button
+              className="btn-navy"
+              onClick={handleAdd}
+              disabled={soldOut}
+            >
+              ADD TO CART
+            </button>
+            <button
+              className="btn-red"
+              onClick={handleBuyNow}
+              disabled={soldOut}
+            >
+              BUY NOW
+            </button>
+          </div>
+        )}
       </div>
     </article>
   );

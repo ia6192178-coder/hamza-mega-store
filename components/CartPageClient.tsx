@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import type { Settings } from '@/lib/types';
 import { formatRs } from '@/lib/types';
-import { useCart } from '@/components/CartContext';
+import { itemKey, lineName, linePrice, useCart } from '@/components/CartContext';
 
 export default function CartPageClient({ settings }: { settings: Settings }) {
   const { items, subtotal, updateQty, removeItem, clearCart } = useCart();
@@ -34,30 +34,30 @@ export default function CartPageClient({ settings }: { settings: Settings }) {
 
       <div className="cart-layout">
         <div className="card">
-          {items.map(({ product, qty }) => (
-            <div key={product.id} className="cart-table-item">
-              <img src={product.image_url} alt={product.name} />
+          {items.map((item) => (
+            <div key={itemKey(item)} className="cart-table-item">
+              <img src={item.product.image_url} alt={item.product.name} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <Link
-                  href={`/product/${product.id}`}
+                  href={`/product/${item.product.id}`}
                   style={{ fontWeight: 700, color: 'var(--navy)' }}
                 >
-                  {product.name}
+                  {lineName(item)}
                 </Link>
                 <div style={{ fontSize: 13, color: 'var(--muted)' }}>
-                  {formatRs(product.price)} each
+                  {formatRs(linePrice(item))} each
                 </div>
                 <div style={{ marginTop: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
                   <div className="qty-controls">
                     <button
-                      onClick={() => updateQty(product.id, qty - 1)}
+                      onClick={() => updateQty(itemKey(item), item.qty - 1)}
                       aria-label="Decrease quantity"
                     >
                       −
                     </button>
-                    <span>{qty}</span>
+                    <span>{item.qty}</span>
                     <button
-                      onClick={() => updateQty(product.id, qty + 1)}
+                      onClick={() => updateQty(itemKey(item), item.qty + 1)}
                       aria-label="Increase quantity"
                     >
                       +
@@ -65,14 +65,14 @@ export default function CartPageClient({ settings }: { settings: Settings }) {
                   </div>
                   <button
                     className="drawer-remove"
-                    onClick={() => removeItem(product.id)}
+                    onClick={() => removeItem(itemKey(item))}
                   >
                     Remove
                   </button>
                 </div>
               </div>
               <strong style={{ color: 'var(--red)', whiteSpace: 'nowrap' }}>
-                {formatRs(product.price * qty)}
+                {formatRs(linePrice(item) * item.qty)}
               </strong>
             </div>
           ))}

@@ -30,6 +30,37 @@ export type SeedProduct = {
   rating: number;
 };
 
+// Demo variants — ONLY used on a FRESH seed (empty products table), never on
+// an existing database. They show the owner how size/weight options work:
+// shoes in sizes 7–10, and a dumbbell set sold by weight.
+export type SeedVariant = {
+  product_name: string;
+  variant_label: string;
+  variants: { label: string; price: number; old_price: number | null; stock: number }[];
+};
+
+export const SEED_VARIANTS: SeedVariant[] = [
+  {
+    product_name: "Men's Running Shoes",
+    variant_label: 'Size',
+    variants: [
+      { label: 'UK 7', price: 3499, old_price: 4999, stock: 10 },
+      { label: 'UK 8', price: 3499, old_price: 4999, stock: 10 },
+      { label: 'UK 9', price: 3599, old_price: 4999, stock: 10 },
+      { label: 'UK 10', price: 3699, old_price: 4999, stock: 10 },
+    ],
+  },
+  {
+    product_name: 'Adjustable Dumbbell Set 10kg',
+    variant_label: 'Weight',
+    variants: [
+      { label: '5kg', price: 3499, old_price: 4999, stock: 8 },
+      { label: '10kg', price: 4999, old_price: 6999, stock: 8 },
+      { label: '15kg', price: 6499, old_price: 8999, stock: 8 },
+    ],
+  },
+];
+
 // Sample catalogue (31 products, 10 categories). Every image URL below is a
 // real Unsplash photo verified to return HTTP 200. These are placeholder
 // products — the owner replaces them from the Admin panel (/admin).

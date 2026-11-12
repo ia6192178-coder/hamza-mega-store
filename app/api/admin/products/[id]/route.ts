@@ -1,7 +1,12 @@
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 import { isAdminLoggedIn } from '@/lib/admin';
-import { hasDb, mapProduct } from '@/lib/db';
+import {
+  ensureVariantSchema,
+  getProduct,
+  hasDb,
+  saveProductVariants,
+} from '@/lib/db';
 import { parseProductBody } from '@/lib/product-input';
 
 export const dynamic = 'force-dynamic';
@@ -47,17 +52,20 @@ export async function PUT(req: Request, { params }: RouteContext) {
         is_best_seller = ${product.is_best_seller},
         is_clearance = ${product.is_clearance},
         is_sold_out = ${product.is_sold_out},
-        rating = ${product.rating}
+        rating = ${product.rating},
+        variant_label = ${product.variant_label}
       WHERE id = ${id}
-      RETURNING *
+      RETURNING id
     `;
     if (rows.length === 0) {
       return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
     }
-    return NextResponse.json({
-      ok: true,
-      product: mapProduct(rows[0] as Record<string, unknown>),
-    });
+    // Replace the variant rows (empty list clears them — the product becomes
+    // simple again). The schema guard covers a missed /api/seed run.
+    await ensureVariantSchema();
+    await saveProductVariants(id, product.variants);
+    const updated = await getProduct(id);
+    return NextResponse.json({ ok: true, product: updated });
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Could not update the product.' },

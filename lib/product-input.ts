@@ -1,4 +1,11 @@
 // Shared validation for product create/update payloads (admin API).
+export type VariantInput = {
+  label: string;
+  price: number;
+  old_price: number | null;
+  stock: number;
+};
+
 export type ProductInput = {
   name: string;
   category: string;
@@ -12,7 +19,12 @@ export type ProductInput = {
   is_clearance: boolean;
   is_sold_out: boolean;
   rating: number;
+  // Option name shown above the selector (e.g. 'Size'). Empty = simple product.
+  variant_label: string | null;
+  variants: VariantInput[];
 };
+
+const MAX_VARIANTS = 20;
 
 export function parseProductBody(
   body: Record<string, unknown>,
@@ -41,6 +53,44 @@ export function parseProductBody(
   if (!Number.isFinite(rating) || rating < 0 || rating > 5)
     return { error: 'Rating must be between 0 and 5.' };
 
+  // Variants: optional. An empty option name means a simple product — any
+  // variant rows sent with it are ignored. With an option name, at least
+  // one valid variant row is required.
+  const variantLabelRaw = String(body.variant_label ?? '').trim();
+  const variant_label = variantLabelRaw ? variantLabelRaw : null;
+  const variants: VariantInput[] = [];
+  if (variant_label) {
+    const rawList = Array.isArray(body.variants) ? body.variants : [];
+    if (rawList.length === 0)
+      return { error: 'Add at least one variant (e.g. Size 7) or clear the option name.' };
+    if (rawList.length > MAX_VARIANTS)
+      return { error: `Too many variants — at most ${MAX_VARIANTS} per product.` };
+    for (const item of rawList) {
+      const row = (item ?? {}) as Record<string, unknown>;
+      const label = String(row.label ?? '').trim();
+      const vPrice = Number(row.price);
+      const vOldRaw = row.old_price;
+      const vOld =
+        vOldRaw === null || vOldRaw === undefined || vOldRaw === ''
+          ? null
+          : Number(vOldRaw);
+      const vStock = Number(row.stock);
+      if (!label) return { error: 'Every variant needs a value (e.g. Size 9).' };
+      if (!Number.isFinite(vPrice) || vPrice <= 0)
+        return { error: `Variant "${label}" needs a price greater than 0.` };
+      if (vOld !== null && (!Number.isFinite(vOld) || vOld < 0))
+        return { error: `Variant "${label}" has an invalid old price.` };
+      if (!Number.isFinite(vStock) || vStock < 0)
+        return { error: `Variant "${label}" needs stock of 0 or more.` };
+      variants.push({
+        label,
+        price: Math.round(vPrice),
+        old_price: vOld === null ? null : Math.round(vOld),
+        stock: Math.floor(vStock),
+      });
+    }
+  }
+
   return {
     product: {
       name,
@@ -55,6 +105,8 @@ export function parseProductBody(
       is_clearance: Boolean(body.is_clearance),
       is_sold_out: Boolean(body.is_sold_out),
       rating,
+      variant_label,
+      variants,
     },
   };
 }

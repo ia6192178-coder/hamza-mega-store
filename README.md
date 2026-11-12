@@ -86,7 +86,9 @@ The shop needs a database to store products and orders:
 4. In the Admin Panel you can:
    - **Products** — add a new product, edit price/photo/stock, or delete a
      product. (To add a product photo, paste the image link in the
-     "Photo URL" box.)
+     "Photo URL" box.) Products can also have **variants** — sizes,
+     colours or weights with their own price and stock (see "Product
+     variants" below).
    - **Orders** — see customer orders and change their status
      (Pending → Confirmed → Shipped → Delivered).
    - **Settings** — change phone, WhatsApp, email, address, delivery
@@ -109,6 +111,38 @@ Your domain is at Hostinger. To use it for this website:
 - **Design or code changes:** change the files on GitHub (or ask your
   developer). Vercel automatically re-deploys the website whenever the
   GitHub repository changes.
+
+### Updating your live site with a new version (e.g. v2)
+
+When you receive an updated project ZIP from your developer:
+
+1. **Extract** the new ZIP on your computer.
+2. Go to your GitHub repository (`hamza-mega-store`) → **Add file** →
+   **Upload files**.
+3. Select **ALL** files and folders from the new project folder and drag
+   them in — this **overwrites** the old files with the new version.
+   Click **Commit changes**.
+4. Vercel will **automatically re-deploy** the website (1–2 minutes).
+   No new project is needed.
+5. When the deployment finishes, open your `/api/seed` link once
+   (e.g. `https://www.hamzamegastore.com/api/seed`). This creates the new
+   database tables/columns for the update. **Your existing products and
+   orders are kept — nothing is deleted or duplicated.**
+6. Open your website and check that everything still works.
+
+### Product variants (sizes, colours, weights)
+
+A product can now have **options** — for example shoe sizes (UK 7, 8, 9,
+10), colours (Red, Blue, Black) or weights (500g, 1kg). Each option has
+its own price and stock, and customers choose one on the product page.
+
+- In the Admin Panel, open a product and set the **Variant Option Name**
+  (e.g. `Size`, `Color` or `Weight`), then add one row per option with
+  its price and stock.
+- Leave the option name **empty** for a normal product with one price.
+- Orders show the chosen option next to the product name (e.g.
+  "Men's Running Shoes — UK 9"), in the Admin Orders page and on the
+  customer's My Orders page.
 
 ### Troubleshooting
 
@@ -198,7 +232,9 @@ Dukaan ko products aur orders save karne ke liye database chahiye:
 4. Admin Panel mein aap ye sab kar sakte hain:
    - **Products** — naya product add karein, price/photo/stock badlein ya
      product delete karein. (Photo ke liye "Photo URL" wale box mein image
-     ka link paste karein.)
+     ka link paste karein.) Products ke **variants** bhi ho sakte hain —
+     size, colour ya weight, har aik ki apni price aur stock (neeche
+     "Product variants" dekhein).
    - **Orders** — customers ke orders dekhein aur status badlein
      (Pending → Confirmed → Shipped → Delivered).
    - **Settings** — phone, WhatsApp, email, address, delivery charges,
@@ -223,6 +259,39 @@ Aapka domain Hostinger par hai. Usay is website se jorne ke liye:
 - **Design ya code mein tabdeeli:** GitHub par files badlein (ya developer
   se karwayein). GitHub par tabdeeli hote hi Vercel website khud dobara
   deploy kar dega.
+
+### Live site ko naye version se update karna (jaisa v2)
+
+Jab developer se updated project ZIP mile:
+
+1. Nayi ZIP ko apne computer par **extract** karein.
+2. Apne GitHub repository (`hamza-mega-store`) mein jayein → **Add file** →
+   **Upload files**.
+3. Naye project folder ki **SAARI** files aur folders select karke drag kar
+   dein — is se purani files **nayi files se badal jayengi**.
+   **Commit changes** dabayein.
+4. Vercel website ko **khud dobara deploy** kar dega (1–2 minute).
+   Naya project banane ki zaroorat nahi.
+5. Deployment mukammal ho jaye to apna `/api/seed` wala link aik dafa
+   kholein (jaisa `https://www.hamzamegastore.com/api/seed`). Is se update
+   ke liye naye database tables/columns ban jayenge. **Aapke purane
+   products aur orders mehfooz rahenge — kuch delete ya double nahi hoga.**
+6. Website khol kar check kar lein ke sab theek chal raha hai.
+
+### Product variants (size, colour, weight)
+
+Ab aik product ke **options** bhi ho sakte hain — jaisa jooton ke sizes
+(UK 7, 8, 9, 10), colours (Red, Blue, Black) ya weight (500g, 1kg). Har
+option ki apni price aur stock hoti hai, aur customer product page par
+aik option select karta hai.
+
+- Admin Panel mein product kholein aur **Variant Option Name** likhein
+  (jaisa `Size`, `Color` ya `Weight`), phir har option ke liye aik row
+  add karein — us ki price aur stock ke saath.
+- Normal product (aik price wala) ke liye option name **khaali** chor dein.
+- Orders mein product ke naam ke saath chuna hua option bhi likha aayega
+  (jaisa "Men's Running Shoes — UK 9") — Admin Orders page par bhi aur
+  customer ke My Orders page par bhi.
 
 ### Masla ho to
 
