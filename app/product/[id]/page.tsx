@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import ProductCard, { Stars } from '@/components/ProductCard';
 import ProductDetailActions from '@/components/ProductDetailActions';
+import ProductGallery from '@/components/ProductGallery';
 import { slugifyCategory } from '@/lib/categories';
 import { getProduct, getProductsByCategory, getSettings } from '@/lib/db';
 import { productHasVariants, productSoldOut, variantBestDiscount } from '@/lib/types';
@@ -38,11 +39,7 @@ export default async function ProductPage({
       </p>
 
       <div className="product-detail">
-        <div className="product-detail-image">
-          <img src={product.image_url} alt={product.name} />
-          {off !== null && <span className="pc-badge pc-badge-off">{off}% OFF</span>}
-          {soldOut && <span className="pc-soldout">SOLD OUT</span>}
-        </div>
+        <ProductGallery product={product} off={off} soldOut={soldOut} />
 
         <div className="product-detail-info">
           <span className="pc-cat">{product.category}</span>

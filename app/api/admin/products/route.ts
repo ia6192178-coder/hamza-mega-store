@@ -6,6 +6,7 @@ import {
   getProduct,
   getProducts,
   hasDb,
+  resolveImageValue,
   saveProductVariants,
 } from '@/lib/db';
 import { parseProductBody } from '@/lib/product-input';
@@ -41,21 +42,29 @@ export async function POST(req: Request) {
     if (!product) {
       return NextResponse.json({ error: error ?? 'Invalid product.' }, { status: 400 });
     }
+    // Make sure the variants table AND the gallery column exist before the
+    // insert (in case /api/seed was not run after the update) — the insert
+    // below writes the gallery column, so the migration must run first.
+    await ensureVariantSchema();
+    // A new product has no stored images, so any /api/image URL in the
+    // payload is stripped; uploads (data URLs) and pasted links pass through.
+    const imageUrl = resolveImageValue(product.image_url, -1, null);
+    const gallery = product.gallery.map((g) =>
+      resolveImageValue(g, -1, null),
+    );
     const { rows } = await sql`
       INSERT INTO products
-        (name, category, price, old_price, description, image_url, stock,
+        (name, category, price, old_price, description, image_url, gallery, stock,
          is_new, is_best_seller, is_clearance, is_sold_out, rating, variant_label)
       VALUES
         (${product.name}, ${product.category}, ${product.price}, ${product.old_price},
-         ${product.description}, ${product.image_url}, ${product.stock},
+         ${product.description}, ${imageUrl}, ${JSON.stringify(gallery)}, ${product.stock},
          ${product.is_new}, ${product.is_best_seller}, ${product.is_clearance},
          ${product.is_sold_out}, ${product.rating}, ${product.variant_label})
       RETURNING id
     `;
     const newId = Number(rows[0].id);
-    // Make sure the variants table exists (in case /api/seed was not run
-    // after the update), then save the variant rows.
-    await ensureVariantSchema();
+    // Save the variant rows (empty list = simple product).
     await saveProductVariants(newId, product.variants);
     const created = await getProduct(newId);
     return NextResponse.json({ ok: true, product: created }, { status: 201 });

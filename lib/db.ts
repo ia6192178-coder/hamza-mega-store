@@ -6,11 +6,11 @@ export function hasDb(): boolean {
   return Boolean(process.env.POSTGRES_URL);
 }
 
-// Idempotent DDL for the variants feature. Safe to run any time — every
-// statement is IF NOT EXISTS, and re-running changes nothing. The /api/seed
-// route runs it, and the admin/order APIs call it lazily (once per
-// serverless instance) so the feature works even if the owner forgets to
-// visit /api/seed after deploying the update.
+// Idempotent DDL for the variants feature (v2) and the photo gallery (v3).
+// Safe to run any time — every statement is IF NOT EXISTS, and re-running
+// changes nothing. The /api/seed route runs it, and the admin/order APIs
+// call it lazily (once per serverless instance) so the features work even
+// if the owner forgets to visit /api/seed after deploying the update.
 const VARIANT_SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS product_variants (
     id SERIAL PRIMARY KEY,
@@ -24,6 +24,9 @@ const VARIANT_SCHEMA_SQL = [
   `ALTER TABLE products ADD COLUMN IF NOT EXISTS variant_label TEXT`,
   `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_label TEXT`,
   `ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_price NUMERIC`,
+  // v3 — extra product photos, stored as a JSON array of image strings
+  // (base64 data URLs for uploads, remote URLs for pasted links).
+  `ALTER TABLE products ADD COLUMN IF NOT EXISTS gallery TEXT NOT NULL DEFAULT '[]'`,
 ];
 
 let variantSchemaPromise: Promise<void> | null = null;
@@ -44,16 +47,50 @@ export function ensureVariantSchema(): Promise<void> {
   return variantSchemaPromise;
 }
 
+// Parse the gallery JSON column into an array of image strings. Returns
+// [] when the column is missing (migration not run yet), empty or invalid
+// — the store keeps working exactly as before.
+export function parseGallery(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string' && v !== '');
+  }
+  if (typeof value !== 'string' || value.trim() === '') return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (v): v is string => typeof v === 'string' && v !== '',
+    );
+  } catch {
+    return [];
+  }
+}
+
+// Uploaded photos are stored as base64 data URLs. Those must never reach
+// the browser inside page data (a listing page would carry megabytes of
+// images) — instead the storefront gets a light /api/image URL that serves
+// the binary on demand. Remote URLs pass through unchanged.
+function publicImageUrl(productId: number, value: string, index: number): string {
+  if (!value) return '';
+  if (value.startsWith('data:')) {
+    return `/api/image?product=${productId}&i=${index}`;
+  }
+  return value;
+}
+
 // Postgres returns NUMERIC as string, so normalise every row before use.
 export function mapProduct(row: Record<string, unknown>): Product {
+  const id = Number(row.id);
+  const gallery = parseGallery(row.gallery);
   return {
-    id: Number(row.id),
+    id,
     name: String(row.name ?? ''),
     category: String(row.category ?? ''),
     price: Number(row.price ?? 0),
     old_price: row.old_price === null || row.old_price === undefined ? null : Number(row.old_price),
     description: String(row.description ?? ''),
-    image_url: String(row.image_url ?? ''),
+    image_url: publicImageUrl(id, String(row.image_url ?? ''), 0),
+    gallery: gallery.map((g, i) => publicImageUrl(id, g, i + 1)),
     stock: Number(row.stock ?? 0),
     is_new: Boolean(row.is_new),
     is_best_seller: Boolean(row.is_best_seller),
@@ -219,6 +256,59 @@ export async function getProduct(id: number): Promise<Product | null> {
   } catch {
     return null;
   }
+}
+
+// ---------- Raw product images (for /api/image + admin saves) ----------
+
+// Fetch the STORED image values for one product — raw data URLs, not the
+// public /api/image URLs that mapProduct returns. Used by the /api/image
+// route to serve the binary, and by the admin update handler to keep
+// images the owner did not change. Falls back to the main photo only when
+// the gallery column does not exist yet (migration not run).
+export async function getProductImageValues(
+  id: number,
+): Promise<{ image_url: string; gallery: string[] } | null> {
+  if (!hasDb()) return null;
+  try {
+    const { rows } = await sql`
+      SELECT image_url, gallery FROM products WHERE id = ${id} LIMIT 1
+    `;
+    if (rows.length === 0) return null;
+    return {
+      image_url: String(rows[0].image_url ?? ''),
+      gallery: parseGallery(rows[0].gallery),
+    };
+  } catch {
+    try {
+      const { rows } = await sql`
+        SELECT image_url FROM products WHERE id = ${id} LIMIT 1
+      `;
+      if (rows.length === 0) return null;
+      return { image_url: String(rows[0].image_url ?? ''), gallery: [] };
+    } catch {
+      return null;
+    }
+  }
+}
+
+// Resolve one image value coming back from the admin form. An /api/image
+// URL means "keep the stored image at that index" (the form shows stored
+// photos through the route, so an untouched photo comes back as a route
+// URL). Data URLs (fresh uploads) and remote URLs (pasted links) are
+// stored as-is. A route URL for a different product is dropped.
+export function resolveImageValue(
+  value: string,
+  productId: number,
+  existing: { image_url: string; gallery: string[] } | null,
+): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  const match = /^\/api\/image\?product=(\d+)&i=(\d+)$/.exec(trimmed);
+  if (!match) return trimmed;
+  if (Number(match[1]) !== productId || !existing) return '';
+  const index = Number(match[2]);
+  if (index === 0) return existing.image_url;
+  return existing.gallery[index - 1] ?? '';
 }
 
 export async function searchProducts(query: string): Promise<Product[]> {

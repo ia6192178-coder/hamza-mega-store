@@ -1,3 +1,5 @@
+import { MAX_EXTRA_IMAGES } from './types';
+
 // Shared validation for product create/update payloads (admin API).
 export type VariantInput = {
   label: string;
@@ -13,6 +15,9 @@ export type ProductInput = {
   old_price: number | null;
   description: string;
   image_url: string;
+  // Extra photos (data URLs from uploads, or remote URLs). At most
+  // MAX_EXTRA_IMAGES entries; empty strings are dropped.
+  gallery: string[];
   stock: number;
   is_new: boolean;
   is_best_seller: boolean;
@@ -25,6 +30,12 @@ export type ProductInput = {
 };
 
 const MAX_VARIANTS = 20;
+// One uploaded photo is ~100–200KB after browser compression; ~1.5M
+// characters of base64 is roughly 1.1MB of binary — anything bigger is
+// rejected so a single photo can never blow up the request. The total cap
+// keeps the whole save under Vercel's 4.5MB serverless request limit.
+const MAX_IMAGE_CHARS = 1_500_000;
+const MAX_TOTAL_IMAGE_CHARS = 4_000_000;
 
 export function parseProductBody(
   body: Record<string, unknown>,
@@ -52,6 +63,32 @@ export function parseProductBody(
     return { error: 'Stock must be 0 or more.' };
   if (!Number.isFinite(rating) || rating < 0 || rating > 5)
     return { error: 'Rating must be between 0 and 5.' };
+
+  // Photos: the main photo plus up to MAX_EXTRA_IMAGES gallery photos.
+  // Uploaded photos arrive as base64 data URLs (compressed in the browser
+  // first); pasted links arrive as remote URLs. Both are stored as-is.
+  if (image_url.length > MAX_IMAGE_CHARS)
+    return { error: 'The main photo is too large — please choose a smaller photo.' };
+  const rawGallery = Array.isArray(body.gallery) ? body.gallery : [];
+  if (rawGallery.length > MAX_EXTRA_IMAGES)
+    return {
+      error: `Too many extra photos — at most ${MAX_EXTRA_IMAGES} per product (plus the main photo).`,
+    };
+  const gallery: string[] = [];
+  let totalImageChars = image_url.length;
+  for (const item of rawGallery) {
+    const value = String(item ?? '').trim();
+    if (!value) continue;
+    if (value.length > MAX_IMAGE_CHARS)
+      return { error: 'One of the extra photos is too large — please choose a smaller photo.' };
+    totalImageChars += value.length;
+    gallery.push(value);
+  }
+  if (totalImageChars > MAX_TOTAL_IMAGE_CHARS)
+    return {
+      error:
+        'The photos together are too large to save — please remove one or use smaller photos.',
+    };
 
   // Variants: optional. An empty option name means a simple product — any
   // variant rows sent with it are ignored. With an option name, at least
@@ -99,6 +136,7 @@ export function parseProductBody(
       old_price: old_price === null ? null : Math.round(old_price),
       description,
       image_url,
+      gallery,
       stock: Math.floor(stock),
       is_new: Boolean(body.is_new),
       is_best_seller: Boolean(body.is_best_seller),

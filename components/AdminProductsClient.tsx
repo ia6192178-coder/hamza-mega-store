@@ -1,10 +1,15 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { CATEGORIES } from '@/lib/categories';
 import type { Product } from '@/lib/types';
-import { formatRs, productHasVariants, productTotalStock } from '@/lib/types';
+import {
+  formatRs,
+  MAX_EXTRA_IMAGES,
+  productHasVariants,
+  productTotalStock,
+} from '@/lib/types';
 
 type FormState = {
   name: string;
@@ -83,6 +88,73 @@ function rowsFromProduct(p: Product): VariantRow[] {
   }));
 }
 
+// ---------- Client-side photo compression ----------
+// Phone photos are 2–5MB — far too big to send to the server as-is (Vercel
+// rejects requests over 4.5MB, and uploads crawl on a slow connection).
+// Every photo is resized in the browser before saving: max 1200px on the
+// long edge, JPEG quality 0.82 — usually 100–200KB. If the result is still
+// over ~1MB, one smaller/lower-quality retry runs before giving up.
+
+const MAX_PHOTO_EDGE = 1200;
+const MAX_PHOTO_BYTES = 1_000_000;
+
+function loadImageFile(file: File): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not read this photo. Please try another file.'));
+    };
+    img.src = url;
+  });
+}
+
+function renderJpeg(
+  img: HTMLImageElement,
+  maxEdge: number,
+  quality: number,
+): string {
+  const scale = Math.min(
+    1,
+    maxEdge / Math.max(img.naturalWidth, img.naturalHeight),
+  );
+  const width = Math.max(1, Math.round(img.naturalWidth * scale));
+  const height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Your browser cannot process photos.');
+  ctx.drawImage(img, 0, 0, width, height);
+  return canvas.toDataURL('image/jpeg', quality);
+}
+
+// Approximate binary size of a data URL (base64 is ~4/3 of the binary).
+function dataUrlBytes(dataUrl: string): number {
+  const comma = dataUrl.indexOf(',');
+  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  return Math.floor(base64.length * 0.75);
+}
+
+async function compressPhoto(file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please choose an image file (JPG or PNG).');
+  }
+  const img = await loadImageFile(file);
+  const first = renderJpeg(img, MAX_PHOTO_EDGE, 0.82);
+  if (dataUrlBytes(first) <= MAX_PHOTO_BYTES) return first;
+  const retry = renderJpeg(img, 900, 0.7);
+  if (dataUrlBytes(retry) <= MAX_PHOTO_BYTES) return retry;
+  throw new Error(
+    'This photo is still too large after compression — please choose a smaller photo.',
+  );
+}
+
 export default function AdminProductsClient({
   initialProducts,
 }: {
@@ -95,6 +167,17 @@ export default function AdminProductsClient({
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [variantRows, setVariantRows] = useState<VariantRow[]>([]);
+  // Extra photos (up to MAX_EXTRA_IMAGES). Each entry is a data URL (fresh
+  // upload), a remote URL (pasted link) or a /api/image URL (an untouched
+  // stored photo — the server resolves those back on save).
+  const [gallery, setGallery] = useState<string[]>([]);
+  // The "or paste an image link" box under the main photo upload.
+  const [pasteUrl, setPasteUrl] = useState('');
+  // 'main' | 'gallery' while a photo is being compressed, '' otherwise.
+  const [compressing, setCompressing] = useState('');
+  const [photoError, setPhotoError] = useState('');
+  const mainFileRef = useRef<HTMLInputElement>(null);
+  const galleryFileRef = useRef<HTMLInputElement>(null);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [listError, setListError] = useState('');
@@ -112,6 +195,9 @@ export default function AdminProductsClient({
     setEditing(null);
     setForm(emptyForm);
     setVariantRows([]);
+    setGallery([]);
+    setPasteUrl('');
+    setPhotoError('');
     setFormError('');
     setShowForm(true);
   };
@@ -120,6 +206,9 @@ export default function AdminProductsClient({
     setEditing(p);
     setForm(formFromProduct(p));
     setVariantRows(rowsFromProduct(p));
+    setGallery(p.gallery ?? []);
+    setPasteUrl('');
+    setPhotoError('');
     setFormError('');
     setShowForm(true);
   };
@@ -137,9 +226,66 @@ export default function AdminProductsClient({
   const removeVariantRow = (index: number) =>
     setVariantRows((rows) => rows.filter((_, i) => i !== index));
 
+  const handleMainFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    // Clear the input so picking the same file again still fires onChange.
+    e.target.value = '';
+    if (!file) return;
+    setPhotoError('');
+    setCompressing('main');
+    try {
+      set('image_url', await compressPhoto(file));
+      setPasteUrl('');
+    } catch (err) {
+      setPhotoError(
+        err instanceof Error ? err.message : 'Could not use this photo.',
+      );
+    } finally {
+      setCompressing('');
+    }
+  };
+
+  const handleGalleryFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoError('');
+    setCompressing('gallery');
+    try {
+      const dataUrl = await compressPhoto(file);
+      setGallery((g) =>
+        g.length >= MAX_EXTRA_IMAGES ? g : [...g, dataUrl],
+      );
+    } catch (err) {
+      setPhotoError(
+        err instanceof Error ? err.message : 'Could not use this photo.',
+      );
+    } finally {
+      setCompressing('');
+    }
+  };
+
+  // Fallback for owners who already have a photo hosted somewhere: paste
+  // its link instead of uploading a file.
+  const usePastedMainUrl = () => {
+    const url = pasteUrl.trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      setPhotoError('Please paste a full image link starting with https://');
+      return;
+    }
+    setPhotoError('');
+    set('image_url', url);
+    setPasteUrl('');
+  };
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError('');
+    if (compressing) {
+      setFormError('Please wait for the photo to finish processing.');
+      return;
+    }
     const price = Number(form.price);
     const oldPrice = form.old_price.trim() ? Number(form.old_price) : null;
     const stock = Number(form.stock);
@@ -196,6 +342,7 @@ export default function AdminProductsClient({
             old_price: oldPrice,
             description: form.description.trim(),
             image_url: form.image_url.trim(),
+            gallery,
             stock,
             rating,
             is_new: form.is_new,
@@ -444,13 +591,130 @@ export default function AdminProductsClient({
               </div>
 
               <div className="form-field">
-                <label>Photo URL</label>
+                <label>Main Photo</label>
+                {form.image_url ? (
+                  <div className="upload-row">
+                    <img
+                      src={form.image_url}
+                      alt="Main product photo"
+                      className="upload-preview"
+                    />
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="btn-outline btn-small"
+                        onClick={() => mainFileRef.current?.click()}
+                        disabled={compressing !== ''}
+                      >
+                        {compressing === 'main'
+                          ? 'Processing…'
+                          : 'Replace Photo'}
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-danger btn-small"
+                        onClick={() => set('image_url', '')}
+                        disabled={compressing !== ''}
+                      >
+                        Remove Photo
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-navy"
+                    onClick={() => mainFileRef.current?.click()}
+                    disabled={compressing !== ''}
+                  >
+                    {compressing === 'main'
+                      ? 'Processing photo…'
+                      : '📷 Upload Main Photo'}
+                  </button>
+                )}
                 <input
-                  className="input"
-                  value={form.image_url}
-                  onChange={(e) => set('image_url', e.target.value)}
-                  placeholder="https://… (paste an image link)"
+                  ref={mainFileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={handleMainFile}
                 />
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <input
+                    className="input"
+                    value={pasteUrl}
+                    onChange={(e) => setPasteUrl(e.target.value)}
+                    placeholder="…or paste an image link (https://)"
+                  />
+                  <button
+                    type="button"
+                    className="btn-outline btn-small"
+                    onClick={usePastedMainUrl}
+                    disabled={!pasteUrl.trim()}
+                  >
+                    Use Link
+                  </button>
+                </div>
+                <p className="variant-hint">
+                  Photos are compressed automatically before saving, so phone
+                  photos upload quickly.
+                </p>
+                {photoError && (
+                  <div className="form-error" style={{ marginTop: 8 }}>
+                    {photoError}
+                  </div>
+                )}
+              </div>
+
+              <div className="form-field">
+                <label>
+                  Extra Photos (optional) — up to {MAX_EXTRA_IMAGES}
+                </label>
+                <div className="gallery-slots">
+                  {gallery.map((src, i) => (
+                    <div key={i} className="gallery-slot">
+                      <img src={src} alt={`Extra photo ${i + 1}`} />
+                      <button
+                        type="button"
+                        className="gallery-slot-remove"
+                        onClick={() =>
+                          setGallery((g) => g.filter((_, j) => j !== i))
+                        }
+                        aria-label={`Remove extra photo ${i + 1}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  {gallery.length < MAX_EXTRA_IMAGES && (
+                    <button
+                      type="button"
+                      className="upload-add"
+                      onClick={() => galleryFileRef.current?.click()}
+                      disabled={compressing !== ''}
+                      aria-label="Add an extra photo"
+                    >
+                      {compressing === 'gallery' ? '…' : '＋'}
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={galleryFileRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={handleGalleryFile}
+                />
+                <p className="variant-hint">
+                  Extra photos appear as thumbnails on the product page —
+                  customers tap them to view.
+                </p>
               </div>
 
               <div className="form-field">
@@ -607,12 +871,18 @@ export default function AdminProductsClient({
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-red" disabled={saving}>
+                <button
+                  type="submit"
+                  className="btn-red"
+                  disabled={saving || compressing !== ''}
+                >
                   {saving
                     ? 'Saving…'
-                    : editing
-                      ? 'Save Changes'
-                      : 'Add Product'}
+                    : compressing !== ''
+                      ? 'Processing photo…'
+                      : editing
+                        ? 'Save Changes'
+                        : 'Add Product'}
                 </button>
               </div>
             </form>

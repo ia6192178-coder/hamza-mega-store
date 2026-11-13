@@ -85,8 +85,10 @@ The shop needs a database to store products and orders:
    right away. Keep it safe — this password controls your whole store.
 4. In the Admin Panel you can:
    - **Products** — add a new product, edit price/photo/stock, or delete a
-     product. (To add a product photo, paste the image link in the
-     "Photo URL" box.) Products can also have **variants** — sizes,
+     product. (To add a product photo, use the **Upload Main Photo**
+     button — the photo is compressed automatically. You can also add up
+     to 4 extra photos, shown as thumbnails on the product page, or paste
+     an image link instead.) Products can also have **variants** — sizes,
      colours or weights with their own price and stock (see "Product
      variants" below).
    - **Orders** — see customer orders and change their status
@@ -112,7 +114,7 @@ Your domain is at Hostinger. To use it for this website:
   developer). Vercel automatically re-deploys the website whenever the
   GitHub repository changes.
 
-### Updating your live site with a new version (e.g. v2)
+### Updating your live site with a new version (e.g. v3)
 
 When you receive an updated project ZIP from your developer:
 
@@ -143,6 +145,24 @@ its own price and stock, and customers choose one on the product page.
 - Orders show the chosen option next to the product name (e.g.
   "Men's Running Shoes — UK 9"), in the Admin Orders page and on the
   customer's My Orders page.
+
+### Product photos — upload and gallery (v3)
+
+Each product can have a **main photo plus up to 4 extra photos**:
+
+- In the Admin Panel, open a product and use the **Upload Main Photo**
+  button to pick a photo from your phone or computer. The photo is
+  compressed in the browser first, so even large phone photos upload
+  quickly.
+- Use the **＋** button under **Extra Photos** to add more photos — they
+  appear as thumbnails on the product page, and customers tap them to
+  view. Tap the **✕** on a photo to remove it.
+- You can still paste an image link instead of uploading, using the
+  "…or paste an image link" box.
+- Uploaded photos are stored in the shop's database — no extra service
+  or setup is needed. After updating to v3, open your `/api/seed` link
+  once (as in the update steps above) so the database adds the gallery
+  column. Your existing products, photos and orders are kept.
 
 ### Troubleshooting
 
@@ -231,8 +251,11 @@ Dukaan ko products aur orders save karne ke liye database chahiye:
    hoti hai.
 4. Admin Panel mein aap ye sab kar sakte hain:
    - **Products** — naya product add karein, price/photo/stock badlein ya
-     product delete karein. (Photo ke liye "Photo URL" wale box mein image
-     ka link paste karein.) Products ke **variants** bhi ho sakte hain —
+     product delete karein. (Photo ke liye **Upload Main Photo** wala
+     button istemal karein — photo khud compress ho jayegi. 4 extra photos
+     bhi add kar sakte hain, jo product page par thumbnails mein nazar
+     aayengi; ya image ka link bhi paste kar sakte hain.) Products ke
+     **variants** bhi ho sakte hain —
      size, colour ya weight, har aik ki apni price aur stock (neeche
      "Product variants" dekhein).
    - **Orders** — customers ke orders dekhein aur status badlein
@@ -260,7 +283,7 @@ Aapka domain Hostinger par hai. Usay is website se jorne ke liye:
   se karwayein). GitHub par tabdeeli hote hi Vercel website khud dobara
   deploy kar dega.
 
-### Live site ko naye version se update karna (jaisa v2)
+### Live site ko naye version se update karna (jaisa v3)
 
 Jab developer se updated project ZIP mile:
 
@@ -293,6 +316,25 @@ aik option select karta hai.
   (jaisa "Men's Running Shoes — UK 9") — Admin Orders page par bhi aur
   customer ke My Orders page par bhi.
 
+### Product photos — upload aur gallery (v3)
+
+Har product ki **aik main photo aur 4 extra photos** tak ho sakti hain:
+
+- Admin Panel mein product kholein aur **Upload Main Photo** wale button
+  se apne phone ya computer se photo select karein. Photo browser mein
+  pehle compress ho jayegi, is liye bari phone photos bhi jaldi upload
+  hongi.
+- **Extra Photos** ke neeche **＋** wale button se mazeed photos add
+  karein — ye product page par thumbnails mein nazar aayengi, customer
+  tap karke dekh sakta hai. Photo hatane ke liye us par **✕** dabayein.
+- Upload ke bajaye image ka link bhi paste kar sakte hain ("…or paste an
+  image link" wala box).
+- Upload ki hui photos dukaan ke database mein save hoti hain — koi alag
+  service ya setup nahi chahiye. V3 par update karne ke baad apna
+  `/api/seed` wala link aik dafa kholein (upar wale update steps ke
+  mutabiq) taake database mein gallery column ban jaye. Aapke purane
+  products, photos aur orders mehfooz rahenge.
+
 ### Masla ho to
 
 - **Website par "No products loaded yet" likha aaye:** Step 4 reh gaya hai —
@@ -313,7 +355,7 @@ aik option select karta hai.
 
 - `app/` — pages (home, category, product, cart, checkout, orders, about,
   blog, reviews, contact, admin) and API routes (`/api/seed`,
-  `/api/products`, `/api/orders`, `/api/admin/*`)
+  `/api/products`, `/api/orders`, `/api/image`, `/api/admin/*`)
 - `components/` — header, footer, product cards, cart drawer, hero carousel,
   checkout/order forms, admin panels
 - `lib/` — Postgres helpers (`db.ts`), seed catalogue (`seed-data.ts`),

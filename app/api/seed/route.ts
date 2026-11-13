@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic';
 // GET /api/seed — one-time setup, safe to call again (idempotent):
 //  - creates the tables if they do not exist
 //  - runs the variants migration (new table + columns, all IF NOT EXISTS)
+//  - runs the gallery migration (gallery column, IF NOT EXISTS)
 //  - inserts default settings for keys that are missing (never overwrites)
 //  - inserts the 31 sample products ONLY when the products table is empty
 //    (on a fresh seed only, 2 of them get demo variants — never on an
@@ -34,6 +35,7 @@ export async function GET() {
         old_price INTEGER,
         description TEXT NOT NULL DEFAULT '',
         image_url TEXT NOT NULL DEFAULT '',
+        gallery TEXT NOT NULL DEFAULT '[]',
         stock INTEGER NOT NULL DEFAULT 0,
         is_new BOOLEAN NOT NULL DEFAULT FALSE,
         is_best_seller BOOLEAN NOT NULL DEFAULT FALSE,
@@ -77,7 +79,7 @@ export async function GET() {
       )
     `;
 
-    // Variants migration — safe on a live database: creates the
+    // Variants + gallery migration — safe on a live database: creates the
     // product_variants table and adds the new columns only if missing.
     // Existing products, variants and orders are never changed.
     await ensureVariantSchema();

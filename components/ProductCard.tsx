@@ -6,6 +6,7 @@ import type { Product } from '@/lib/types';
 import {
   discountPercent,
   formatRs,
+  imageSrc,
   productHasVariants,
   productMinPrice,
   productSoldOut,
@@ -48,7 +49,7 @@ export default function ProductCard({ product }: { product: Product }) {
     <article className="product-card">
       <Link href={`/product/${product.id}`} className="pc-image-wrap">
         <img
-          src={product.image_url}
+          src={imageSrc(product)}
           alt={product.name}
           className="pc-image"
           loading="lazy"

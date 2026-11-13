@@ -4,7 +4,9 @@ import { isAdminLoggedIn } from '@/lib/admin';
 import {
   ensureVariantSchema,
   getProduct,
+  getProductImageValues,
   hasDb,
+  resolveImageValue,
   saveProductVariants,
 } from '@/lib/db';
 import { parseProductBody } from '@/lib/product-input';
@@ -39,6 +41,18 @@ export async function PUT(req: Request, { params }: RouteContext) {
     if (!product) {
       return NextResponse.json({ error: error ?? 'Invalid product.' }, { status: 400 });
     }
+    // Make sure the variants table AND the gallery column exist before the
+    // update (in case /api/seed was not run after the update).
+    await ensureVariantSchema();
+    // Photos the owner did not touch come back as /api/image URLs — resolve
+    // those to the stored values so they are kept. Fresh uploads (data
+    // URLs) and pasted links are stored as-is; removed photos arrive as
+    // empty strings and are dropped.
+    const existing = await getProductImageValues(id);
+    const imageUrl = resolveImageValue(product.image_url, id, existing);
+    const gallery = product.gallery.map((g) =>
+      resolveImageValue(g, id, existing),
+    );
     const { rows } = await sql`
       UPDATE products SET
         name = ${product.name},
@@ -46,7 +60,8 @@ export async function PUT(req: Request, { params }: RouteContext) {
         price = ${product.price},
         old_price = ${product.old_price},
         description = ${product.description},
-        image_url = ${product.image_url},
+        image_url = ${imageUrl},
+        gallery = ${JSON.stringify(gallery)},
         stock = ${product.stock},
         is_new = ${product.is_new},
         is_best_seller = ${product.is_best_seller},
@@ -62,7 +77,6 @@ export async function PUT(req: Request, { params }: RouteContext) {
     }
     // Replace the variant rows (empty list clears them — the product becomes
     // simple again). The schema guard covers a missed /api/seed run.
-    await ensureVariantSchema();
     await saveProductVariants(id, product.variants);
     const updated = await getProduct(id);
     return NextResponse.json({ ok: true, product: updated });

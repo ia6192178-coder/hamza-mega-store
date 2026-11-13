@@ -16,6 +16,11 @@ export type Product = {
   old_price: number | null;
   description: string;
   image_url: string;
+  // Extra photos (up to 4) shown as thumbnails on the product page.
+  // Each entry is either a remote URL or a /api/image route URL — the
+  // database stores uploaded photos as base64 data URLs, but those are
+  // never sent to the browser in page data (see mapProduct in lib/db.ts).
+  gallery: string[];
   stock: number;
   is_new: boolean;
   is_best_seller: boolean;
@@ -65,6 +70,41 @@ export function formatRs(amount: number): string {
 export function discountPercent(p: Product): number | null {
   if (!p.old_price || p.old_price <= p.price) return null;
   return Math.round(((p.old_price - p.price) / p.old_price) * 100);
+}
+
+// ---------- Product image helpers ----------
+
+/** Max extra photos per product (plus the 1 main photo = 5 total). */
+export const MAX_EXTRA_IMAGES = 4;
+
+/**
+ * Display URL for one of a product's images: index 0 is the main photo,
+ * 1..4 are the gallery photos. Uploaded photos are stored in the database
+ * as base64 data URLs — those are served through the /api/image route so
+ * the page HTML stays light. Remote URLs (e.g. Unsplash) are used as-is.
+ * (Server-side, mapProduct already rewrites data URLs to route URLs, so
+ * the 'data:' branch here is a safety net for any raw value that slips
+ * through, e.g. a freshly uploaded photo in the admin form.)
+ */
+export function imageSrc(product: Product, index = 0): string {
+  const raw =
+    index === 0
+      ? product.image_url
+      : (product.gallery?.[index - 1] ?? '');
+  if (!raw) return '';
+  if (raw.startsWith('data:')) {
+    return `/api/image?product=${product.id}&i=${index}`;
+  }
+  return raw;
+}
+
+/** All display image URLs for a product: main photo first, then gallery. */
+export function productImages(product: Product): string[] {
+  const images = [imageSrc(product, 0)];
+  (product.gallery ?? []).forEach((_, i) => {
+    images.push(imageSrc(product, i + 1));
+  });
+  return images.filter((src) => src !== '');
 }
 
 // ---------- Variant helpers ----------
