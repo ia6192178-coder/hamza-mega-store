@@ -1,6 +1,11 @@
 import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
-import { ensureVariantSchema, hasDb } from '@/lib/db';
+import {
+  ensureBlogSchema,
+  ensureCategorySchema,
+  ensureVariantSchema,
+  hasDb,
+} from '@/lib/db';
 import { DEFAULT_SETTINGS, SEED_PRODUCTS, SEED_VARIANTS } from '@/lib/seed-data';
 
 export const dynamic = 'force-dynamic';
@@ -9,6 +14,10 @@ export const dynamic = 'force-dynamic';
 //  - creates the tables if they do not exist
 //  - runs the variants migration (new table + columns, all IF NOT EXISTS)
 //  - runs the gallery migration (gallery column, IF NOT EXISTS)
+//  - runs the categories migration (categories table + the 10 original
+//    categories, missing only)
+//  - runs the blog migration (blog_posts table + the 3 original posts,
+//    missing only)
 //  - inserts default settings for keys that are missing (never overwrites)
 //  - inserts the 31 sample products ONLY when the products table is empty
 //    (on a fresh seed only, 2 of them get demo variants — never on an
@@ -79,10 +88,39 @@ export async function GET() {
       )
     `;
 
+    await sql`
+      CREATE TABLE IF NOT EXISTS categories (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS blog_posts (
+        id SERIAL PRIMARY KEY,
+        title TEXT NOT NULL,
+        slug TEXT UNIQUE NOT NULL,
+        excerpt TEXT NOT NULL DEFAULT '',
+        body TEXT NOT NULL DEFAULT '',
+        image_url TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `;
+
     // Variants + gallery migration — safe on a live database: creates the
     // product_variants table and adds the new columns only if missing.
     // Existing products, variants and orders are never changed.
     await ensureVariantSchema();
+
+    // Categories migration — creates the table (if missing) and seeds the
+    // 10 original categories plus any category products already use.
+    // Existing products and orders are never changed.
+    await ensureCategorySchema();
+
+    // Blog migration — creates the table (if missing) and seeds the 3
+    // original posts. Existing products and orders are never changed.
+    await ensureBlogSchema();
 
     // Default settings — only for keys that do not exist yet, so re-running
     // seed never overwrites the owner's changes (including the admin password).
@@ -141,6 +179,10 @@ export async function GET() {
 
     const totalResult = await sql`SELECT COUNT(*)::int AS count FROM products`;
     const total = Number(totalResult.rows[0]?.count ?? 0);
+    const catResult = await sql`SELECT COUNT(*)::int AS count FROM categories`;
+    const categoriesTotal = Number(catResult.rows[0]?.count ?? 0);
+    const blogResult = await sql`SELECT COUNT(*)::int AS count FROM blog_posts`;
+    const blogPostsTotal = Number(blogResult.rows[0]?.count ?? 0);
 
     return NextResponse.json({
       ok: true,
@@ -149,6 +191,8 @@ export async function GET() {
       products_seeded: productsSeeded,
       variants_seeded: variantsSeeded,
       products_total: total,
+      categories_total: categoriesTotal,
+      blog_posts_total: blogPostsTotal,
       message:
         productsSeeded > 0
           ? `Done! ${productsSeeded} sample products loaded (${variantsSeeded} demo variants). Your store is ready — open the homepage, then log in at /admin (password: hamza123) and change the password in Settings.`

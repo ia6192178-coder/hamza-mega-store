@@ -1075,6 +1075,18 @@ button:disabled {
   overflow: hidden;
 }
 
+/* Blog cards are links to the article page. */
+a.blog-card {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  transition: box-shadow 0.15s ease;
+}
+
+a.blog-card:hover {
+  box-shadow: 0 4px 16px rgba(10, 25, 47, 0.12);
+}
+
 .blog-card-body {
   padding: 16px;
 }
@@ -1089,6 +1101,48 @@ button:disabled {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
+}
+
+/* Single article page (/blog/[slug]). */
+.article-back {
+  display: inline-block;
+  color: var(--red);
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+
+.article-back:hover {
+  text-decoration: underline;
+}
+
+.article {
+  max-width: 760px;
+}
+
+.article-date {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0 0 16px;
+}
+
+.article-image {
+  width: 100%;
+  max-height: 420px;
+  object-fit: cover;
+  border-radius: 10px;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.article-body p {
+  line-height: 1.8;
+  color: #37415a;
+  /* Single line breaks inside a paragraph are kept, as the owner typed
+     them; blank lines split the article into paragraphs. */
+  white-space: pre-line;
+  margin: 0 0 16px;
 }
 
 .review-grid {

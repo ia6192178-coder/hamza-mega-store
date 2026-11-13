@@ -3,12 +3,18 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { CATEGORIES, slugifyCategory } from '@/lib/categories';
+import { slugifyCategory } from '@/lib/categories';
 import type { Product, Settings } from '@/lib/types';
 import { formatRs } from '@/lib/types';
 import { useCart } from './CartContext';
 
-export default function Header({ settings }: { settings: Settings }) {
+export default function Header({
+  settings,
+  categories,
+}: {
+  settings: Settings;
+  categories: string[];
+}) {
   const { count, openDrawer } = useCart();
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -152,7 +158,7 @@ export default function Header({ settings }: { settings: Settings }) {
           </button>
           {catOpen && (
             <div className="cat-dropdown-menu">
-              {CATEGORIES.map((c) => (
+              {categories.map((c) => (
                 <Link
                   key={c}
                   href={`/category/${slugifyCategory(c)}`}
@@ -181,7 +187,7 @@ export default function Header({ settings }: { settings: Settings }) {
           <Link href="/" onClick={() => setMobileOpen(false)}>
             Home
           </Link>
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <Link
               key={c}
               href={`/category/${slugifyCategory(c)}`}

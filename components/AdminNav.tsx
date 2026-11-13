@@ -31,6 +31,8 @@ export default function AdminNav() {
       <h3>🛍️ Admin Panel</h3>
       {item('/admin', '📊 Dashboard')}
       {item('/admin/products', '📦 Products')}
+      {item('/admin/categories', '🗂️ Categories')}
+      {item('/admin/blog', '📝 Blog')}
       {item('/admin/orders', '🧾 Orders')}
       {item('/admin/settings', '⚙️ Settings')}
       <Link href="/">🏪 View Store</Link>

@@ -2,7 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { useMemo, useRef, useState } from 'react';
-import { CATEGORIES } from '@/lib/categories';
+import { CATEGORIES, MAX_CATEGORY_NAME_LENGTH } from '@/lib/categories';
+import { compressPhoto } from '@/lib/compress-photo';
 import type { Product } from '@/lib/types';
 import {
   formatRs,
@@ -60,6 +61,10 @@ const emptyForm: FormState = {
   variant_label: '',
 };
 
+// Sentinel value for the "＋ Create New Category" option in the Category
+// dropdown — when it is selected, an inline input appears for the new name.
+const NEW_CATEGORY_VALUE = '__new_category__';
+
 function formFromProduct(p: Product): FormState {
   return {
     name: p.name,
@@ -88,81 +93,23 @@ function rowsFromProduct(p: Product): VariantRow[] {
   }));
 }
 
-// ---------- Client-side photo compression ----------
-// Phone photos are 2–5MB — far too big to send to the server as-is (Vercel
-// rejects requests over 4.5MB, and uploads crawl on a slow connection).
-// Every photo is resized in the browser before saving: max 1200px on the
-// long edge, JPEG quality 0.82 — usually 100–200KB. If the result is still
-// over ~1MB, one smaller/lower-quality retry runs before giving up.
-
-const MAX_PHOTO_EDGE = 1200;
-const MAX_PHOTO_BYTES = 1_000_000;
-
-function loadImageFile(file: File): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Could not read this photo. Please try another file.'));
-    };
-    img.src = url;
-  });
-}
-
-function renderJpeg(
-  img: HTMLImageElement,
-  maxEdge: number,
-  quality: number,
-): string {
-  const scale = Math.min(
-    1,
-    maxEdge / Math.max(img.naturalWidth, img.naturalHeight),
-  );
-  const width = Math.max(1, Math.round(img.naturalWidth * scale));
-  const height = Math.max(1, Math.round(img.naturalHeight * scale));
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Your browser cannot process photos.');
-  ctx.drawImage(img, 0, 0, width, height);
-  return canvas.toDataURL('image/jpeg', quality);
-}
-
-// Approximate binary size of a data URL (base64 is ~4/3 of the binary).
-function dataUrlBytes(dataUrl: string): number {
-  const comma = dataUrl.indexOf(',');
-  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
-  return Math.floor(base64.length * 0.75);
-}
-
-async function compressPhoto(file: File): Promise<string> {
-  if (!file.type.startsWith('image/')) {
-    throw new Error('Please choose an image file (JPG or PNG).');
-  }
-  const img = await loadImageFile(file);
-  const first = renderJpeg(img, MAX_PHOTO_EDGE, 0.82);
-  if (dataUrlBytes(first) <= MAX_PHOTO_BYTES) return first;
-  const retry = renderJpeg(img, 900, 0.7);
-  if (dataUrlBytes(retry) <= MAX_PHOTO_BYTES) return retry;
-  throw new Error(
-    'This photo is still too large after compression — please choose a smaller photo.',
-  );
-}
-
 export default function AdminProductsClient({
   initialProducts,
+  initialCategories,
 }: {
   initialProducts: Product[];
+  initialCategories: string[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
+  // Live category list (from the database, with the built-in list as the
+  // fallback). Grows immediately when a new category is created here.
+  const [categories, setCategories] = useState<string[]>(
+    initialCategories.length > 0 ? initialCategories : [...CATEGORIES],
+  );
+  // Name typed into the inline "Create New Category" input in the form.
+  const [newCategoryName, setNewCategoryName] = useState('');
   const [editing, setEditing] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -193,7 +140,8 @@ export default function AdminProductsClient({
 
   const openAdd = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, category: categories[0] ?? CATEGORIES[0] });
+    setNewCategoryName('');
     setVariantRows([]);
     setGallery([]);
     setPasteUrl('');
@@ -205,6 +153,12 @@ export default function AdminProductsClient({
   const openEdit = (p: Product) => {
     setEditing(p);
     setForm(formFromProduct(p));
+    setNewCategoryName('');
+    // Safety: if this product's category is somehow missing from the list,
+    // add it so the dropdown still shows the product's real category.
+    setCategories((prev) =>
+      prev.includes(p.category) ? prev : [...prev, p.category],
+    );
     setVariantRows(rowsFromProduct(p));
     setGallery(p.gallery ?? []);
     setPasteUrl('');
@@ -328,8 +282,42 @@ export default function AdminProductsClient({
       }
     }
 
+    // "Create New Category" chosen — validate the typed name now; the
+    // category itself is created below, just before the product is saved.
+    const creatingCategory = form.category === NEW_CATEGORY_VALUE;
+    const typedCategory = newCategoryName.trim();
+    if (creatingCategory) {
+      if (!typedCategory)
+        return setFormError('Enter a name for the new category.');
+      if (typedCategory.length > MAX_CATEGORY_NAME_LENGTH)
+        return setFormError(
+          `Category name must be ${MAX_CATEGORY_NAME_LENGTH} characters or less.`,
+        );
+    }
+
     setSaving(true);
     try {
+      // Resolve the product's category first: a new category is created
+      // (or the existing one reused when the name already exists) and added
+      // to the dropdown immediately.
+      let category = form.category;
+      if (creatingCategory) {
+        const catRes = await fetch('/api/admin/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: typedCategory }),
+        });
+        const catData = await catRes.json();
+        if (!catRes.ok)
+          throw new Error(catData.error || 'Could not create the category.');
+        category = catData.category.name as string;
+        setCategories((prev) =>
+          prev.some((c) => c.toLowerCase() === category.toLowerCase())
+            ? prev
+            : [...prev, category],
+        );
+      }
+
       const res = await fetch(
         editing ? `/api/admin/products/${editing.id}` : '/api/admin/products',
         {
@@ -337,7 +325,7 @@ export default function AdminProductsClient({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: form.name.trim(),
-            category: form.category,
+            category,
             price,
             old_price: oldPrice,
             description: form.description.trim(),
@@ -392,7 +380,7 @@ export default function AdminProductsClient({
           onChange={(e) => setCategory(e.target.value)}
         >
           <option value="All">All Categories</option>
-          {CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <option key={c} value={c}>
               {c}
             </option>
@@ -544,12 +532,32 @@ export default function AdminProductsClient({
                     value={form.category}
                     onChange={(e) => set('category', e.target.value)}
                   >
-                    {CATEGORIES.map((c) => (
+                    {categories.map((c) => (
                       <option key={c} value={c}>
                         {c}
                       </option>
                     ))}
+                    <option value={NEW_CATEGORY_VALUE}>
+                      ＋ Create New Category…
+                    </option>
                   </select>
+                  {form.category === NEW_CATEGORY_VALUE && (
+                    <>
+                      <input
+                        className="input"
+                        style={{ marginTop: 8 }}
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        maxLength={MAX_CATEGORY_NAME_LENGTH}
+                        placeholder="New category name — e.g. Electronics"
+                      />
+                      <p className="variant-hint">
+                        The new category is created when you save this
+                        product, and will appear in the dropdown and on the
+                        store right away.
+                      </p>
+                    </>
+                  )}
                 </div>
                 <div className="form-field">
                   <label>Rating (0 – 5)</label>

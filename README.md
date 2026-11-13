@@ -90,7 +90,12 @@ The shop needs a database to store products and orders:
      to 4 extra photos, shown as thumbnails on the product page, or paste
      an image link instead.) Products can also have **variants** — sizes,
      colours or weights with their own price and stock (see "Product
-     variants" below).
+     variants" below). The Category dropdown also has a
+     **＋ Create New Category** option for a brand-new category.
+   - **Categories** — add a new category, rename one (its products move
+     with it), or delete a category that has no products.
+   - **Blog** — write, edit or delete blog posts (title, summary, full
+     article text and a photo). Posts appear on the Blog page right away.
    - **Orders** — see customer orders and change their status
      (Pending → Confirmed → Shipped → Delivered).
    - **Settings** — change phone, WhatsApp, email, address, delivery
@@ -114,7 +119,7 @@ Your domain is at Hostinger. To use it for this website:
   developer). Vercel automatically re-deploys the website whenever the
   GitHub repository changes.
 
-### Updating your live site with a new version (e.g. v3)
+### Updating your live site with a new version (e.g. v5)
 
 When you receive an updated project ZIP from your developer:
 
@@ -131,6 +136,10 @@ When you receive an updated project ZIP from your developer:
    database tables/columns for the update. **Your existing products and
    orders are kept — nothing is deleted or duplicated.**
 6. Open your website and check that everything still works.
+
+Each new version includes everything from the earlier ones — so if you
+skipped a version (for example you never applied v4), just apply the
+latest one (v5) and you get all of it.
 
 ### Product variants (sizes, colours, weights)
 
@@ -163,6 +172,56 @@ Each product can have a **main photo plus up to 4 extra photos**:
   or setup is needed. After updating to v3, open your `/api/seed` link
   once (as in the update steps above) so the database adds the gallery
   column. Your existing products, photos and orders are kept.
+
+### Categories — create and manage (v4)
+
+Categories now live in the database, and you can manage them yourself —
+no code needed:
+
+- **New category while adding a product:** in the product form, open the
+  **Category** dropdown and choose **＋ Create New Category…**, then type
+  the name. The category is created when you save the product, and it
+  appears in the dropdown and on the store right away. If the name already
+  exists, that category is simply used.
+- **Categories page (Admin Panel → Categories):** see all categories with
+  how many products each one has. Add a new one with the text box at the
+  top, **Rename** one (its products move to the new name automatically),
+  or **Delete** a category — only possible when no product uses it.
+- After updating to v4, open your `/api/seed` link once (as in the update
+  steps above) so the database creates the categories table and loads the
+  10 original categories. Your existing products and orders are kept.
+
+### Blog — write posts from the Admin Panel (v5)
+
+The Blog page now comes from the database, and you can write posts
+yourself — no code needed:
+
+- **Admin Panel → Blog:** see all posts with their dates and page
+  addresses. **+ New Post** opens the editor: a **Title**, a short
+  **Summary** (shown under the title on the Blog page — leave it empty
+  and the start of the article is used), the full **Article** text, and a
+  **Photo** (upload from your phone or computer, or paste an image link —
+  same as product photos).
+- The page address is made from the title automatically (for example
+  "5 Easy Ways to Keep Your Kitchen Tidy" becomes
+  `/blog/5-easy-ways-to-keep-your-kitchen-tidy`). Two posts with the same
+  title get different addresses automatically.
+- In the article text, **leave a blank line between paragraphs** — that
+  is how paragraphs appear on the article page.
+- **Edit** a post to change its title, text or photo; **Delete** removes
+  it from the Blog page. The 3 original posts are already in the list and
+  can be edited or deleted like any other post.
+- After updating to v5, open your `/api/seed` link once (as in the update
+  steps above) so the database creates the blog table and loads the 3
+  original posts. Your existing products and orders are kept. **v5
+  includes v4**, so if you never applied v4, applying v5 is enough.
+
+### WhatsApp button — official logo (v5)
+
+The green floating WhatsApp button now shows the official WhatsApp logo
+instead of the 💬 emoji — and the same logo appears next to the WhatsApp
+links in the footer, on product and About pages, and in the checkout and
+contact buttons.
 
 ### Troubleshooting
 
@@ -257,7 +316,14 @@ Dukaan ko products aur orders save karne ke liye database chahiye:
      aayengi; ya image ka link bhi paste kar sakte hain.) Products ke
      **variants** bhi ho sakte hain —
      size, colour ya weight, har aik ki apni price aur stock (neeche
-     "Product variants" dekhein).
+     "Product variants" dekhein). Category wali list mein
+     **＋ Create New Category** ka option bhi hai — nayi category ke liye.
+   - **Categories** — nayi category add karein, kisi ka naam badlein
+     (us ke products bhi naye naam par aa jayenge), ya khaali category
+     delete karein.
+   - **Blog** — blog posts likhein, edit karein ya delete karein (title,
+     summary, poora article aur photo). Posts foran Blog page par aa
+     jayengi.
    - **Orders** — customers ke orders dekhein aur status badlein
      (Pending → Confirmed → Shipped → Delivered).
    - **Settings** — phone, WhatsApp, email, address, delivery charges,
@@ -283,7 +349,7 @@ Aapka domain Hostinger par hai. Usay is website se jorne ke liye:
   se karwayein). GitHub par tabdeeli hote hi Vercel website khud dobara
   deploy kar dega.
 
-### Live site ko naye version se update karna (jaisa v3)
+### Live site ko naye version se update karna (jaisa v5)
 
 Jab developer se updated project ZIP mile:
 
@@ -300,6 +366,10 @@ Jab developer se updated project ZIP mile:
    ke liye naye database tables/columns ban jayenge. **Aapke purane
    products aur orders mehfooz rahenge — kuch delete ya double nahi hoga.**
 6. Website khol kar check kar lein ke sab theek chal raha hai.
+
+Har naye version mein pehle walon ki saari cheezein bhi shamil hoti hain —
+agar aap ne koi version skip kiya hai (jaisa v4 kabhi lagaya hi nahi), to
+sirf sab se naya version (v5) laga lein, sab kuch aa jayega.
 
 ### Product variants (size, colour, weight)
 
@@ -335,6 +405,58 @@ Har product ki **aik main photo aur 4 extra photos** tak ho sakti hain:
   mutabiq) taake database mein gallery column ban jaye. Aapke purane
   products, photos aur orders mehfooz rahenge.
 
+### Categories — banana aur sambhalna (v4)
+
+Ab categories database mein rehti hain, aur aap khud sambhal sakte hain —
+code ki zaroorat nahi:
+
+- **Product add karte waqt nayi category:** product form mein **Category**
+  wali list kholein aur **＋ Create New Category…** select karein, phir
+  naam likhein. Product save karte hi category ban jayegi aur list mein
+  aur website par foran nazar aayegi. Agar woh naam pehle se hai to wohi
+  category istemal hogi.
+- **Categories page (Admin Panel → Categories):** saari categories dekhein,
+  har aik ke saath kitne products hain. Upar wale box se nayi add karein,
+  **Rename** se naam badlein (us ke products bhi naye naam par aa
+  jayenge), ya **Delete** se khaali category delete karein — jis category
+  mein products hon wo delete nahi hogi.
+- V4 par update karne ke baad apna `/api/seed` wala link aik dafa kholein
+  (upar wale update steps ke mutabiq) taake database mein categories wali
+  table ban jaye aur 10 purani categories load ho jayen. Aapke purane
+  products aur orders mehfooz rahenge.
+
+### Blog — Admin Panel se posts likhein (v5)
+
+Ab Blog page database se aata hai, aur aap khud posts likh sakte hain —
+code ki zaroorat nahi:
+
+- **Admin Panel → Blog:** saari posts dekhein, un ki tareekh aur page
+  address ke saath. **+ New Post** se editor khulta hai: **Title**,
+  chhota sa **Summary** (Blog page par title ke neeche dikhta hai —
+  khaali chor dein to article ki shuruaat istemal hogi), poora
+  **Article**, aur **Photo** (phone/computer se upload karein ya image
+  ka link paste karein — bilkul products wali photos jaisa).
+- Page address title se khud ban jata hai (jaisa "5 Easy Ways to Keep
+  Your Kitchen Tidy" ka address
+  `/blog/5-easy-ways-to-keep-your-kitchen-tidy` hoga). Aik hi title ki
+  do posts ka address khud alag ho jayega.
+- Article mein **paragraphs ke beech aik khaali line** chhor dein — isi
+  tarah article page par paragraphs bante hain.
+- **Edit** se kisi post ka title, text ya photo badal sakte hain;
+  **Delete** se wo Blog page se hat jayegi. 3 purani posts pehle se list
+  mein hain — unhein bhi aam posts ki tarah edit ya delete kar sakte hain.
+- V5 par update karne ke baad apna `/api/seed` wala link aik dafa kholein
+  (upar wale update steps ke mutabiq) taake database mein blog wali table
+  ban jaye aur 3 purani posts load ho jayen. Aapke purane products aur
+  orders mehfooz rahenge. **V5 mein v4 bhi shamil hai**, to agar v4 kabhi
+  nahi lagaya to sirf v5 lagana kaafi hai.
+
+### WhatsApp button — official logo (v5)
+
+Ab sabz WhatsApp button par 💬 emoji ke bajaye WhatsApp ka official logo
+nazar aayega — aur wohi logo footer, product aur About pages, aur
+checkout aur contact buttons mein WhatsApp links ke saath bhi hai.
+
 ### Masla ho to
 
 - **Website par "No products loaded yet" likha aaye:** Step 4 reh gaya hai —
@@ -355,7 +477,8 @@ Har product ki **aik main photo aur 4 extra photos** tak ho sakti hain:
 
 - `app/` — pages (home, category, product, cart, checkout, orders, about,
   blog, reviews, contact, admin) and API routes (`/api/seed`,
-  `/api/products`, `/api/orders`, `/api/image`, `/api/admin/*`)
+  `/api/products`, `/api/categories`, `/api/orders`, `/api/image`,
+  `/api/admin/*`)
 - `components/` — header, footer, product cards, cart drawer, hero carousel,
   checkout/order forms, admin panels
 - `lib/` — Postgres helpers (`db.ts`), seed catalogue (`seed-data.ts`),

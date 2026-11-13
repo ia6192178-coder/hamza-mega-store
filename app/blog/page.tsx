@@ -1,31 +1,16 @@
-const POSTS = [
-  {
-    title: '10 Kitchen Essentials Every Pakistani Home Needs',
-    excerpt:
-      'From a good non-stick pan to a reliable kettle — the kitchen tools that make daily cooking faster, easier and more fun.',
-    image:
-      'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=800&q=80',
-    date: 'November 2026',
-  },
-  {
-    title: 'How to Organise a Small Home on a Budget',
-    excerpt:
-      'Storage boxes, shoe racks and closet organisers — simple, affordable ideas to make a small home feel spacious.',
-    image:
-      'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=80',
-    date: 'November 2026',
-  },
-  {
-    title: 'Home Workout Basics: Start Fitness Without a Gym',
-    excerpt:
-      'A yoga mat, a pair of dumbbells and 20 minutes a day — everything you need to start your fitness journey at home.',
-    image:
-      'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=800&q=80',
-    date: 'November 2026',
-  },
-];
+import Link from 'next/link';
+import { formatPostDate } from '@/lib/blog';
+import { getBlogPosts } from '@/lib/db';
+import { blogImageSrc } from '@/lib/types';
 
-export default function BlogPage() {
+export const dynamic = 'force-dynamic';
+
+export default async function BlogPage() {
+  // Posts come from the database (managed in the Admin Panel). When the
+  // table is not there yet (migration not run), the 3 original posts are
+  // shown instead — the page never breaks.
+  const posts = await getBlogPosts();
+
   return (
     <div className="page-wrap">
       <h1 className="page-title">Our Blog</h1>
@@ -34,20 +19,39 @@ export default function BlogPage() {
         team.
       </p>
 
-      <div className="blog-grid">
-        {POSTS.map((post) => (
-          <article key={post.title} className="blog-card">
-            <img src={post.image} alt={post.title} loading="lazy" />
-            <div className="blog-card-body">
-              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 6px' }}>
-                {post.date}
-              </p>
-              <h3>{post.title}</h3>
-              <p>{post.excerpt}</p>
-            </div>
-          </article>
-        ))}
-      </div>
+      {posts.length === 0 ? (
+        <div className="empty-state">
+          <h3>No blog posts yet</h3>
+          <p>Check back soon — new guides and tips are added regularly.</p>
+        </div>
+      ) : (
+        <div className="blog-grid">
+          {posts.map((post) => (
+            <Link
+              key={post.slug}
+              href={`/blog/${post.slug}`}
+              className="blog-card"
+            >
+              {post.image_url ? (
+                <img
+                  src={blogImageSrc(post)}
+                  alt={post.title}
+                  loading="lazy"
+                />
+              ) : null}
+              <div className="blog-card-body">
+                <p
+                  style={{ fontSize: 12, color: 'var(--muted)', margin: '0 0 6px' }}
+                >
+                  {formatPostDate(post.created_at)}
+                </p>
+                <h3>{post.title}</h3>
+                {post.excerpt ? <p>{post.excerpt}</p> : null}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

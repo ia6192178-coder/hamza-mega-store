@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
 import type { Settings } from '@/lib/types';
 
 export default function ContactForm({ settings }: { settings: Settings }) {
@@ -66,6 +67,7 @@ export default function ContactForm({ settings }: { settings: Settings }) {
             />
           </div>
           <button type="submit" className="btn-navy btn-block">
+            <WhatsAppIcon size={18} color="#ffffff" />
             Send via WhatsApp
           </button>
         </form>
@@ -88,7 +90,7 @@ export default function ContactForm({ settings }: { settings: Settings }) {
           </a>
         </p>
         <p>
-          💬 <strong>WhatsApp:</strong>
+          <WhatsAppIcon size={17} /> <strong>WhatsApp:</strong>
           <br />
           <a
             href={`https://wa.me/${settings.whatsapp}`}

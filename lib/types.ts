@@ -63,6 +63,30 @@ export type Order = {
 
 export type Settings = Record<string, string>;
 
+// One category from the `categories` table (v4), with how many products
+// use it. `id` is 0 for fallback entries (built-in list, no database).
+export type CategoryWithCount = {
+  id: number;
+  name: string;
+  slug: string;
+  count: number;
+};
+
+// One blog post (v5). `id` is 0 for fallback entries (the 3 original
+// posts, shown when the database table is not there yet).
+export type BlogPost = {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt: string;
+  body: string;
+  // Either a remote URL or a /api/image route URL — the database stores
+  // uploaded photos as base64 data URLs, but those are never sent to the
+  // browser in page data (see mapBlogPost in lib/db.ts).
+  image_url: string;
+  created_at?: string;
+};
+
 export function formatRs(amount: number): string {
   return `Rs ${Number(amount).toLocaleString('en-US')}`;
 }
@@ -105,6 +129,25 @@ export function productImages(product: Product): string[] {
     images.push(imageSrc(product, i + 1));
   });
   return images.filter((src) => src !== '');
+}
+
+// ---------- Blog image helper ----------
+
+/**
+ * Display URL for a blog post's photo. Uploaded photos are stored in the
+ * database as base64 data URLs — those are served through the /api/image
+ * route so the page HTML stays light. Remote URLs (e.g. Unsplash) are
+ * used as-is. (Server-side, mapBlogPost already rewrites data URLs to
+ * route URLs, so the 'data:' branch here is a safety net for any raw
+ * value that slips through, e.g. a freshly uploaded photo in the admin
+ * form.)
+ */
+export function blogImageSrc(post: BlogPost): string {
+  if (!post.image_url) return '';
+  if (post.image_url.startsWith('data:')) {
+    return `/api/image?post=${post.id}`;
+  }
+  return post.image_url;
 }
 
 // ---------- Variant helpers ----------

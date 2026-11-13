@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { getSettings } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -61,7 +62,7 @@ export default async function AboutPage() {
             {settings.email}
           </a>
           <br />
-          💬{' '}
+          <WhatsAppIcon size={17} />{' '}
           <a
             href={`https://wa.me/${settings.whatsapp}`}
             target="_blank"

@@ -3,7 +3,8 @@ import { CartProvider } from '@/components/CartContext';
 import CartDrawer from '@/components/CartDrawer';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
-import { getSettings } from '@/lib/db';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
+import { getCategories, getSettings } from '@/lib/db';
 import './globals.css';
 
 // Always render on the server at request time: the storefront reads products
@@ -21,14 +22,17 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const settings = await getSettings();
+  const [settings, categories] = await Promise.all([
+    getSettings(),
+    getCategories(),
+  ]);
   return (
     <html lang="en">
       <body>
         <CartProvider>
-          <Header settings={settings} />
+          <Header settings={settings} categories={categories} />
           <main>{children}</main>
-          <Footer settings={settings} />
+          <Footer settings={settings} categories={categories} />
           <CartDrawer settings={settings} />
           <a
             href={`https://wa.me/${settings.whatsapp}`}
@@ -38,7 +42,7 @@ export default async function RootLayout({
             aria-label="Chat on WhatsApp"
             title="Chat on WhatsApp"
           >
-            💬
+            <WhatsAppIcon size={30} color="#ffffff" />
           </a>
         </CartProvider>
       </body>

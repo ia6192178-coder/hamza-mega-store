@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
 import type { Settings } from '@/lib/types';
 import { formatRs } from '@/lib/types';
 import { itemKey, lineName, linePrice, useCart } from '@/components/CartContext';
@@ -132,6 +133,7 @@ export default function CheckoutForm({ settings }: { settings: Settings }) {
               rel="noopener noreferrer"
               className="btn-navy"
             >
+              <WhatsAppIcon size={18} color="#ffffff" />
               Confirm on WhatsApp
             </a>
             <Link href="/orders" className="btn-outline">

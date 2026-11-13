@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import Hero from '@/components/Hero';
 import ProductCard from '@/components/ProductCard';
-import { CATEGORIES, slugifyCategory } from '@/lib/categories';
-import { getProducts, getSettings } from '@/lib/db';
+import { slugifyCategory } from '@/lib/categories';
+import { getCategories, getProducts, getSettings } from '@/lib/db';
 import type { Product } from '@/lib/types';
 import { productMinPrice } from '@/lib/types';
 
@@ -36,7 +36,11 @@ function Section({
 }
 
 export default async function HomePage() {
-  const [products, settings] = await Promise.all([getProducts(), getSettings()]);
+  const [products, settings, categories] = await Promise.all([
+    getProducts(),
+    getSettings(),
+    getCategories(),
+  ]);
 
   const newArrivals = products.filter((p) => p.is_new);
   const budget = products.filter((p) => productMinPrice(p) < 499);
@@ -85,7 +89,7 @@ export default async function HomePage() {
             <h2 className="section-title">Shop by Category</h2>
           </div>
           <div className="cat-grid">
-            {CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <Link
                 key={c}
                 href={`/category/${slugifyCategory(c)}`}

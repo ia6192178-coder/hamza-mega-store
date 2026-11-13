@@ -2,6 +2,8 @@ import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 import { isAdminLoggedIn } from '@/lib/admin';
 import {
+  ensureCategoryExists,
+  ensureCategorySchema,
   ensureVariantSchema,
   getProduct,
   getProducts,
@@ -46,6 +48,10 @@ export async function POST(req: Request) {
     // insert (in case /api/seed was not run after the update) — the insert
     // below writes the gallery column, so the migration must run first.
     await ensureVariantSchema();
+    // And make sure the product's category exists in the categories table,
+    // so it shows up in the category list and storefront tiles.
+    await ensureCategorySchema();
+    await ensureCategoryExists(product.category);
     // A new product has no stored images, so any /api/image URL in the
     // payload is stripped; uploads (data URLs) and pasted links pass through.
     const imageUrl = resolveImageValue(product.image_url, -1, null);

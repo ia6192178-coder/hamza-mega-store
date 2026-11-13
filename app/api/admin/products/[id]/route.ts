@@ -2,6 +2,8 @@ import { sql } from '@vercel/postgres';
 import { NextResponse } from 'next/server';
 import { isAdminLoggedIn } from '@/lib/admin';
 import {
+  ensureCategoryExists,
+  ensureCategorySchema,
   ensureVariantSchema,
   getProduct,
   getProductImageValues,
@@ -44,6 +46,9 @@ export async function PUT(req: Request, { params }: RouteContext) {
     // Make sure the variants table AND the gallery column exist before the
     // update (in case /api/seed was not run after the update).
     await ensureVariantSchema();
+    // And make sure the product's category exists in the categories table.
+    await ensureCategorySchema();
+    await ensureCategoryExists(product.category);
     // Photos the owner did not touch come back as /api/image URLs — resolve
     // those to the stored values so they are kept. Fresh uploads (data
     // URLs) and pasted links are stored as-is; removed photos arrive as

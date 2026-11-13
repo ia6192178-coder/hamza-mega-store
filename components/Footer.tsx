@@ -1,8 +1,15 @@
 import Link from 'next/link';
-import { CATEGORIES, slugifyCategory } from '@/lib/categories';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
+import { slugifyCategory } from '@/lib/categories';
 import type { Settings } from '@/lib/types';
 
-export default function Footer({ settings }: { settings: Settings }) {
+export default function Footer({
+  settings,
+  categories,
+}: {
+  settings: Settings;
+  categories: string[];
+}) {
   const year = new Date().getFullYear();
   return (
     <footer className="site-footer">
@@ -21,7 +28,7 @@ export default function Footer({ settings }: { settings: Settings }) {
           </p>
           <p className="footer-contact-line">📍 {settings.address}</p>
           <p className="footer-contact-line">
-            💬{' '}
+            <WhatsAppIcon size={17} />{' '}
             <a
               href={`https://wa.me/${settings.whatsapp}`}
               target="_blank"
@@ -47,7 +54,7 @@ export default function Footer({ settings }: { settings: Settings }) {
 
         <div className="footer-col">
           <h4>Categories</h4>
-          {CATEGORIES.slice(0, 7).map((c) => (
+          {categories.slice(0, 7).map((c) => (
             <Link key={c} href={`/category/${slugifyCategory(c)}`}>
               {c}
             </Link>

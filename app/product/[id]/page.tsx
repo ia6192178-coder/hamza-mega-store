@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import ProductCard, { Stars } from '@/components/ProductCard';
 import ProductDetailActions from '@/components/ProductDetailActions';
 import ProductGallery from '@/components/ProductGallery';
+import WhatsAppIcon from '@/components/WhatsAppIcon';
 import { slugifyCategory } from '@/lib/categories';
 import { getProduct, getProductsByCategory, getSettings } from '@/lib/db';
 import { productHasVariants, productSoldOut, variantBestDiscount } from '@/lib/types';
@@ -84,7 +85,7 @@ export default async function ProductPage({
                 rel="noopener noreferrer"
                 style={{ color: 'var(--red)', fontWeight: 700 }}
               >
-                WhatsApp us
+                <WhatsAppIcon size={16} /> WhatsApp us
               </a>
               .
             </p>

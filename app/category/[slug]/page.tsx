@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import ProductCard from '@/components/ProductCard';
 import { categoryFromSlug } from '@/lib/categories';
-import { getProductsByCategory } from '@/lib/db';
+import { getCategories, getProductsByCategory } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +10,8 @@ export default async function CategoryPage({
 }: {
   params: { slug: string };
 }) {
-  const category = categoryFromSlug(params.slug);
+  const names = await getCategories();
+  const category = categoryFromSlug(params.slug, names);
   if (!category) notFound();
 
   const products = await getProductsByCategory(category);
