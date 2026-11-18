@@ -39,7 +39,10 @@ export async function POST(req: Request) {
   if (denied) return denied;
   try {
     const body = await req.json();
-    const category = await createCategory(String(body.name ?? ''));
+    const category = await createCategory(
+      String(body.name ?? ''),
+      body.image_url,
+    );
     // A new category must show to customers at once (home tiles, header
     // dropdown, category page) — purge the cached storefront pages.
     revalidateStorefront();

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import {
   ensureBlogSchema,
   ensureCategorySchema,
+  ensureDesignSchema,
   ensureVariantSchema,
   hasDb,
 } from '@/lib/db';
@@ -18,6 +19,7 @@ export const dynamic = 'force-dynamic';
 //    categories, missing only)
 //  - runs the blog migration (blog_posts table + the 3 original posts,
 //    missing only)
+//  - runs the design migration (v6.3: design_blocks table)
 //  - inserts default settings for keys that are missing (never overwrites)
 //  - inserts the 31 sample products ONLY when the products table is empty
 //    (on a fresh seed only, 2 of them get demo variants — never on an
@@ -121,6 +123,10 @@ export async function GET() {
     // Blog migration — creates the table (if missing) and seeds the 3
     // original posts. Existing products and orders are never changed.
     await ensureBlogSchema();
+
+    // Design migration (v6.3) — creates the design_blocks table (if
+    // missing). Existing products and orders are never changed.
+    await ensureDesignSchema();
 
     // Default settings — only for keys that do not exist yet, so re-running
     // seed never overwrites the owner's changes (including the admin password).

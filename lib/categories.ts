@@ -18,6 +18,33 @@ export const CATEGORIES: string[] = [
 
 export const MAX_CATEGORY_NAME_LENGTH = 60;
 
+// A category photo is either a compressed data URL from the Admin Panel
+// upload (JPEG, ~1MB binary ≈ 1.4M base64 chars) or a pasted https link.
+// Anything else (or anything bigger) is rejected.
+export const MAX_CATEGORY_IMAGE_LENGTH = 2_000_000;
+export const MAX_CATEGORY_IMAGE_URL_LENGTH = 2000;
+
+export function validateCategoryImageUrl(raw: unknown): {
+  imageUrl?: string;
+  error?: string;
+} {
+  const value = String(raw ?? '').trim();
+  if (!value) return { imageUrl: '' };
+  if (value.startsWith('data:image/')) {
+    if (value.length > MAX_CATEGORY_IMAGE_LENGTH) {
+      return { error: 'This photo is too large — please choose a smaller photo.' };
+    }
+    return { imageUrl: value };
+  }
+  if (value.startsWith('https://') || value.startsWith('http://')) {
+    if (value.length > MAX_CATEGORY_IMAGE_URL_LENGTH) {
+      return { error: 'This image link is too long.' };
+    }
+    return { imageUrl: value };
+  }
+  return { error: 'Photo must be an uploaded image or an https image link.' };
+}
+
 export function slugifyCategory(name: string): string {
   return name
     .toLowerCase()

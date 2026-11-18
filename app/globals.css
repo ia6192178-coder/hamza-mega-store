@@ -13,6 +13,23 @@
   --muted: #6b7280;
   --border: #e3e8f0;
   --green: #1a9e4b;
+  /* v6.3: set by the Design theme (Admin → Design) via inline CSS
+     variables on <body> in app/layout.tsx — these are the defaults. */
+  --header-bg: #0a1633;
+  --btn-bg: #c8102e;
+}
+
+/* Visually hidden but available to screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 * {
@@ -66,7 +83,7 @@ button:disabled {
   font-weight: 700;
   letter-spacing: 0.4px;
   text-transform: uppercase;
-  transition: background 0.15s ease, transform 0.1s ease;
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .btn-navy {
@@ -76,15 +93,19 @@ button:disabled {
 
 .btn-navy:hover:not(:disabled) {
   background: var(--navy-3);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(10, 22, 51, 0.28);
 }
 
 .btn-red {
-  background: var(--red);
+  background: var(--btn-bg);
   color: #fff;
 }
 
 .btn-red:hover:not(:disabled) {
   background: var(--red-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(200, 16, 46, 0.35);
 }
 
 .btn-outline {
@@ -96,6 +117,16 @@ button:disabled {
 .btn-outline:hover:not(:disabled) {
   background: var(--navy);
   color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(10, 22, 51, 0.22);
+}
+
+/* v6.3: a soft press effect on every button. */
+.btn-navy:active:not(:disabled),
+.btn-red:active:not(:disabled),
+.btn-outline:active:not(:disabled) {
+  transform: scale(0.97);
+  box-shadow: none;
 }
 
 .btn-lg {
@@ -132,10 +163,53 @@ button:disabled {
 .announcement-phone {
   white-space: nowrap;
   font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* v6.3: the announcement scrolls right-to-left as a marquee. The track
+   holds an even number of identical copies of the text (see Header.tsx)
+   and animates 0 → -50%, so the loop is seamless. The track is always
+   much wider than the screen, so short and long messages both scroll
+   without gaps. Pauses on hover; disabled entirely for users who prefer
+   reduced motion. */
+.announcement-marquee {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.announcement-track {
+  display: inline-flex;
+  white-space: nowrap;
+  will-change: transform;
+  animation: announcement-scroll 35s linear infinite;
+}
+
+.announcement-marquee:hover .announcement-track {
+  animation-play-state: paused;
+}
+
+.announcement-copy {
+  flex-shrink: 0;
+}
+
+@keyframes announcement-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-track {
+    animation: none;
+  }
 }
 
 .header-main {
-  background: var(--navy);
+  background: var(--header-bg);
   color: #fff;
   display: flex;
   align-items: center;
@@ -221,6 +295,7 @@ button:disabled {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   z-index: 60;
+  animation: drop-in 0.22s ease both;
 }
 
 .search-result {
@@ -344,6 +419,15 @@ button:disabled {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   z-index: 60;
+  animation: drop-in 0.22s ease both;
+}
+
+/* v6.3: dropdowns and popups drop in gently. */
+@keyframes drop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 .cat-dropdown-menu a {
@@ -375,10 +459,30 @@ button:disabled {
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
+  position: relative;
+  transition: color 0.2s ease;
 }
 
 .nav-links a:hover {
   color: #ffb3bf;
+}
+
+/* v6.3: the underline grows in from the left on hover. */
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
+  height: 2px;
+  background: var(--red);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.25s ease;
+}
+
+.nav-links a:hover::after {
+  transform: scaleX(1);
 }
 
 .mobile-menu-btn {
@@ -448,6 +552,19 @@ button:disabled {
   color: #fff;
   max-width: 520px;
   z-index: 2;
+  /* v6.3: the headline rises gently when the page loads. */
+  animation: hero-rise 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-50% + 24px));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%);
+  }
 }
 
 .hero-content h1 {
@@ -478,6 +595,12 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.hero-arrow:hover {
+  transform: translateY(-50%) scale(1.1);
+  background: #fff;
 }
 
 .hero-arrow-left {
@@ -505,6 +628,11 @@ button:disabled {
   border: 2px solid #fff;
   background: transparent;
   padding: 0;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.hero-dot:hover {
+  transform: scale(1.25);
 }
 
 .hero-dot-active {
@@ -592,12 +720,13 @@ button:disabled {
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease;
 }
 
 .cat-tile:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(10, 22, 51, 0.15);
+  transform: translateY(-5px);
+  box-shadow: 0 14px 28px rgba(10, 22, 51, 0.16);
+  border-color: #d5dce8;
 }
 
 .cat-tile img {
@@ -605,6 +734,11 @@ button:disabled {
   height: 110px;
   object-fit: cover;
   display: block;
+  transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+.cat-tile:hover img {
+  transform: scale(1.06);
 }
 
 .cat-tile span {
@@ -631,12 +765,13 @@ button:disabled {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.35s ease, border-color 0.35s ease;
 }
 
 .product-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 10px 24px rgba(10, 22, 51, 0.14);
+  transform: translateY(-5px);
+  box-shadow: 0 16px 32px rgba(10, 22, 51, 0.16);
+  border-color: #d5dce8;
 }
 
 .pc-image-wrap {
@@ -652,6 +787,12 @@ button:disabled {
   height: 100%;
   object-fit: cover;
   display: block;
+  transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* v6.3: the photo zooms gently when the card is hovered. */
+.product-card:hover .pc-image {
+  transform: scale(1.06);
 }
 
 .pc-badge {
@@ -785,6 +926,7 @@ button:disabled {
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 90;
+  animation: fade-in 0.25s ease both;
 }
 
 .drawer {
@@ -798,6 +940,20 @@ button:disabled {
   display: flex;
   flex-direction: column;
   box-shadow: -8px 0 30px rgba(0, 0, 0, 0.3);
+  animation: drawer-in 0.32s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* v6.3: the cart drawer slides in from the right. */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(100%);
+  }
 }
 
 .drawer-head {
@@ -1017,6 +1173,25 @@ button:disabled {
   justify-content: center;
   font-size: 28px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  transition: transform 0.25s ease;
+  /* v6.3: a soft pulse ring draws the eye without shouting. */
+  animation: wa-pulse 2.8s ease-out infinite;
+}
+
+.whatsapp-float:hover {
+  transform: scale(1.08);
+}
+
+@keyframes wa-pulse {
+  0% {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(37, 211, 102, 0.45);
+  }
+  70% {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3), 0 0 0 16px rgba(37, 211, 102, 0);
+  }
+  100% {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3), 0 0 0 0 rgba(37, 211, 102, 0);
+  }
 }
 
 /* ---------- Generic pages ---------- */
@@ -1080,11 +1255,20 @@ a.blog-card {
   text-decoration: none;
   color: inherit;
   display: block;
-  transition: box-shadow 0.15s ease;
+  transition: box-shadow 0.35s ease, transform 0.35s cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 a.blog-card:hover {
-  box-shadow: 0 4px 16px rgba(10, 25, 47, 0.12);
+  box-shadow: 0 12px 28px rgba(10, 25, 47, 0.14);
+  transform: translateY(-4px);
+}
+
+.blog-card img {
+  transition: transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+a.blog-card:hover img {
+  transform: scale(1.04);
 }
 
 .blog-card-body {
@@ -1625,6 +1809,7 @@ textarea.input {
   justify-content: center;
   padding: 30px 16px;
   overflow-y: auto;
+  animation: fade-in 0.2s ease both;
 }
 
 .modal {
@@ -1633,6 +1818,15 @@ textarea.input {
   width: min(620px, 100%);
   padding: 24px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  animation: modal-in 0.28s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* v6.3: admin dialogs rise in gently. */
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
 }
 
 .modal h2 {
@@ -1732,6 +1926,7 @@ textarea.input {
 
   .mobile-nav {
     display: flex;
+    animation: drop-in 0.25s ease both;
   }
 
   .logo-text small {
@@ -2088,4 +2283,379 @@ textarea.input {
 .upload-add:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+/* ---------- Custom design blocks (v6.3, storefront) ---------- */
+
+.design-block-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.design-block-image-link {
+  display: block;
+}
+
+.design-block-caption {
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+  margin: 10px 0 0;
+}
+
+.design-banner {
+  position: relative;
+  height: 320px;
+  overflow: hidden;
+  margin-top: 40px;
+}
+
+.design-banner img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.design-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(10, 22, 51, 0.75) 0%, rgba(10, 22, 51, 0.3) 60%, rgba(10, 22, 51, 0.1) 100%);
+}
+
+.design-banner-content {
+  position: absolute;
+  left: 6%;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #fff;
+  max-width: 560px;
+  z-index: 2;
+}
+
+.design-banner-content h2 {
+  font-size: 34px;
+  line-height: 1.15;
+  margin: 0 0 10px;
+}
+
+.design-banner-content p {
+  font-size: 16px;
+  margin: 0 0 20px;
+  color: #e6eaf5;
+}
+
+.design-promo {
+  margin-top: 40px;
+  padding: 16px 20px;
+  text-align: center;
+}
+
+.design-promo p {
+  margin: 0;
+  color: #fff;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .design-banner {
+    height: 240px;
+  }
+
+  .design-banner-content h2 {
+    font-size: 24px;
+  }
+
+  .design-banner-content p {
+    font-size: 14px;
+  }
+
+  .design-promo p {
+    font-size: 15px;
+  }
+}
+
+/* ---------- Design editor (v6.3, admin) ---------- */
+
+.design-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 18px;
+}
+
+.design-card h2 {
+  margin: 0 0 4px;
+  color: var(--navy);
+  font-size: 19px;
+}
+
+.design-card-hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.color-row:last-of-type {
+  border-bottom: none;
+}
+
+.color-row label {
+  flex: 1;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--navy);
+}
+
+.color-row label small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.color-row input[type='color'] {
+  width: 48px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  padding: 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.color-row input[type='text'] {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.layout-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.layout-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8f9fc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.layout-row-hidden {
+  opacity: 0.55;
+}
+
+.layout-row-label {
+  flex: 1;
+  min-width: 0;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--navy);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layout-badge {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  background: var(--navy);
+  color: #fff;
+  border-radius: 4px;
+  padding: 3px 7px;
+  flex-shrink: 0;
+}
+
+.layout-badge-block {
+  background: var(--red);
+}
+
+.layout-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--navy);
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.layout-btn:hover:not(:disabled) {
+  border-color: var(--navy);
+}
+
+.slide-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: #f8f9fc;
+}
+
+.slide-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.slide-card-head strong {
+  color: var(--navy);
+  font-size: 15px;
+}
+
+.block-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .color-row {
+    flex-wrap: wrap;
+  }
+
+  .color-row label {
+    flex-basis: 100%;
+  }
+
+  .layout-row {
+    flex-wrap: wrap;
+  }
+
+  .layout-row-label {
+    flex-basis: 100%;
+  }
+}
+
+/* ---------- Scroll reveal + reduced motion (v6.3) ---------- */
+
+/* Elements marked data-reveal fade/slide in when they scroll into view:
+   ScrollReveal (components/ScrollReveal.tsx) adds .is-visible with one
+   IntersectionObserver for the whole site. The hidden starting state
+   only applies once JS adds .js-reveal to <html> — without JS, or in
+   print, everything is visible as normal. After the entrance finishes,
+   ScrollReveal removes the data-reveal attribute, so each element's own
+   hover transitions take over untouched. */
+.js-reveal [data-reveal] {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s cubic-bezier(0.22, 0.61, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.js-reveal [data-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* A subtle cascade across each grid row. */
+.js-reveal .product-grid [data-reveal]:nth-child(4n + 2) {
+  transition-delay: 60ms;
+}
+
+.js-reveal .product-grid [data-reveal]:nth-child(4n + 3) {
+  transition-delay: 120ms;
+}
+
+.js-reveal .product-grid [data-reveal]:nth-child(4n) {
+  transition-delay: 180ms;
+}
+
+.js-reveal .cat-grid [data-reveal]:nth-child(5n + 2) {
+  transition-delay: 50ms;
+}
+
+.js-reveal .cat-grid [data-reveal]:nth-child(5n + 3) {
+  transition-delay: 100ms;
+}
+
+.js-reveal .cat-grid [data-reveal]:nth-child(5n + 4) {
+  transition-delay: 150ms;
+}
+
+.js-reveal .cat-grid [data-reveal]:nth-child(5n) {
+  transition-delay: 200ms;
+}
+
+.js-reveal .blog-grid [data-reveal]:nth-child(3n + 2),
+.js-reveal .review-grid [data-reveal]:nth-child(3n + 2) {
+  transition-delay: 70ms;
+}
+
+.js-reveal .blog-grid [data-reveal]:nth-child(3n),
+.js-reveal .review-grid [data-reveal]:nth-child(3n) {
+  transition-delay: 140ms;
+}
+
+.js-reveal .promo-tiles [data-reveal]:nth-child(2) {
+  transition-delay: 80ms;
+}
+
+.js-reveal .promo-tiles [data-reveal]:nth-child(3) {
+  transition-delay: 160ms;
+}
+
+@media print {
+  .js-reveal [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* Respect users who prefer reduced motion: no reveals, no entrance or
+   pulse animations, and all transitions become instant. */
+@media (prefers-reduced-motion: reduce) {
+  .js-reveal [data-reveal] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  .hero-content,
+  .drawer,
+  .drawer-overlay,
+  .modal,
+  .modal-overlay,
+  .search-results,
+  .cat-dropdown-menu,
+  .mobile-nav,
+  .whatsapp-float {
+    animation: none !important;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }

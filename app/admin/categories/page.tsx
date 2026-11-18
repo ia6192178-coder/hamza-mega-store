@@ -14,9 +14,10 @@ export default async function AdminCategoriesPage() {
     <>
       <h1>Categories</h1>
       <p style={{ color: 'var(--muted)', marginTop: 0 }}>
-        Categories group your products on the store. Add a new category, rename
-        one (its products move with it), or delete a category that has no
-        products. Changes appear on the store immediately.
+        Categories group your products on the store. Click a category to open
+        it — a dialog lets you change its name and add its own photo, which
+        shows on its home page tile and at the top of its page. Changes appear
+        on the store immediately.
       </p>
       <AdminCategoriesClient initialCategories={categories} />
     </>

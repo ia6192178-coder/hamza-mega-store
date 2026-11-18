@@ -34,6 +34,7 @@ export default function AdminNav() {
       {item('/admin/categories', '🗂️ Categories')}
       {item('/admin/blog', '📝 Blog')}
       {item('/admin/orders', '🧾 Orders')}
+      {item('/admin/design', '🎨 Design')}
       {item('/admin/settings', '⚙️ Settings')}
       <Link href="/">🏪 View Store</Link>
       <button className="admin-nav-link" onClick={logout}>

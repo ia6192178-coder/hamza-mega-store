@@ -55,7 +55,7 @@ export default function ReviewsPage() {
 
       <div className="review-grid">
         {REVIEWS.map((r) => (
-          <div key={r.name} className="review-card">
+          <div key={r.name} className="review-card" data-reveal>
             <Stars rating={r.rating} />
             <p>“{r.text}”</p>
             <div className="review-name">{r.name}</div>

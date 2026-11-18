@@ -8,12 +8,17 @@ import type { Product, Settings } from '@/lib/types';
 import { formatRs } from '@/lib/types';
 import { useCart } from './CartContext';
 
+// v6.3: `announcementVisible` comes from the Design settings (Admin →
+// Design → Header) — the owner can hide the announcement bar. It
+// defaults to true when the prop is not passed.
 export default function Header({
   settings,
   categories,
+  announcementVisible = true,
 }: {
   settings: Settings;
   categories: string[];
+  announcementVisible?: boolean;
 }) {
   const { count, openDrawer } = useCart();
   const router = useRouter();
@@ -63,14 +68,43 @@ export default function Header({
     router.push(`/search?q=${encodeURIComponent(q)}`);
   };
 
+  // v6.3: the announcement scrolls right-to-left as a marquee (pure CSS
+  // animation, see globals.css). The text is repeated enough times that
+  // the scrolling track is always at least ~5200px wide — twice a very
+  // wide screen — so the loop never shows a gap, even for a very short
+  // message. The count is always even, so the -50% animation lands
+  // exactly on a copy boundary and the loop is seamless. One copy is
+  // ~8px per character (13px font) plus the " • " separator.
+  const announcementText = settings.announcement ?? '';
+  const copyWidth = Math.max(1, (announcementText.length + 3) * 8);
+  const repeatCount = Math.min(
+    100,
+    Math.max(2, Math.ceil(5200 / copyWidth / 2) * 2),
+  );
+  const announcementCopies = Array.from({ length: repeatCount }, (_, i) => (
+    <span key={i} className="announcement-copy">
+      {announcementText}
+      <span className="announcement-sep" aria-hidden="true">
+        &nbsp;&nbsp;•&nbsp;&nbsp;
+      </span>
+    </span>
+  ));
+
   return (
     <header className="site-header">
-      <div className="announcement">
-        <span>{settings.announcement}</span>
-        <a className="announcement-phone" href={`tel:${settings.phone}`}>
-          Call Us: {settings.phone}
-        </a>
-      </div>
+      {announcementVisible && announcementText && (
+        <div className="announcement">
+          {/* The scrolling copies are hidden from screen readers — the
+              sr-only span below carries the message once. */}
+          <div className="announcement-marquee" aria-hidden="true">
+            <div className="announcement-track">{announcementCopies}</div>
+          </div>
+          <span className="sr-only">{announcementText}</span>
+          <a className="announcement-phone" href={`tel:${settings.phone}`}>
+            Call Us: {settings.phone}
+          </a>
+        </div>
+      )}
 
       <div className="header-main">
         <button

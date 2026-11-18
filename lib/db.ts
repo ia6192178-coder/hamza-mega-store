@@ -10,12 +10,17 @@ import {
   CATEGORIES,
   CategoryInputError,
   slugifyCategory,
+  validateCategoryImageUrl,
   validateCategoryName,
 } from './categories';
+import { parseDesign, type Design } from './design';
 import { DEFAULT_SETTINGS } from './seed-data';
 import type {
   BlogPost,
   CategoryWithCount,
+  DesignBlock,
+  DesignBlockContent,
+  DesignBlockType,
   Order,
   OrderItem,
   Product,
@@ -83,8 +88,11 @@ const CATEGORY_SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS categories (
     id SERIAL PRIMARY KEY,
     name TEXT UNIQUE NOT NULL,
+    image_url TEXT NOT NULL DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   )`,
+  // v6.2: each category can have its own photo (set in the Admin Panel).
+  `ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_url TEXT NOT NULL DEFAULT ''`,
 ];
 
 let categorySchemaPromise: Promise<void> | null = null;
@@ -201,10 +209,12 @@ export async function getCategoriesWithCounts(): Promise<CategoryWithCount[]> {
       name,
       slug: slugifyCategory(name),
       count: counts.get(name) ?? 0,
+      image_url: '',
     }));
   if (!hasDb()) return fallback();
   try {
-    const { rows } = await sql`SELECT id, name FROM categories ORDER BY id ASC`;
+    const { rows } =
+      await sql`SELECT id, name, image_url FROM categories ORDER BY id ASC`;
     if (rows.length === 0) return fallback();
     return rows.map((r) => {
       const name = String(r.name);
@@ -213,6 +223,7 @@ export async function getCategoriesWithCounts(): Promise<CategoryWithCount[]> {
         name,
         slug: slugifyCategory(name),
         count: counts.get(name) ?? 0,
+        image_url: String(r.image_url ?? ''),
       };
     });
   } catch (err) {
@@ -242,11 +253,16 @@ async function assertSlugFree(slug: string, excludeId?: number): Promise<void> {
 // Create a category. If a category with the same name already exists
 // (case-insensitive), the existing one is returned instead — so the
 // product form's "Create New" never fails on a duplicate, it just uses it.
+// `imageUrl` (v6.2) is the category's own photo, set from the Admin Panel.
 export async function createCategory(
   rawName: string,
+  rawImageUrl?: unknown,
 ): Promise<{ id: number; name: string; existed: boolean }> {
   const { name, error } = validateCategoryName(rawName);
   if (!name) throw new CategoryInputError(error ?? 'Invalid category name.');
+  const { imageUrl, error: imageError } =
+    validateCategoryImageUrl(rawImageUrl);
+  if (imageError) throw new CategoryInputError(imageError);
   await ensureCategorySchema();
   const found = await sql`
     SELECT id, name FROM categories WHERE LOWER(name) = LOWER(${name}) LIMIT 1
@@ -260,39 +276,55 @@ export async function createCategory(
   }
   await assertSlugFree(slugifyCategory(name));
   const { rows } = await sql`
-    INSERT INTO categories (name) VALUES (${name}) RETURNING id
+    INSERT INTO categories (name, image_url) VALUES (${name}, ${imageUrl ?? ''}) RETURNING id
   `;
   return { id: Number(rows[0].id), name, existed: false };
 }
 
-// Rename a category. Products store the category as plain text, so they
-// are moved to the new name in the same step — otherwise the renamed
-// category would look empty and the old name would linger on products.
+// Rename a category (and, since v6.2, change its photo). Products store
+// the category as plain text, so they are moved to the new name in the
+// same step — otherwise the renamed category would look empty and the old
+// name would linger on products. `imageUrl` undefined keeps the current
+// photo, '' removes it, a value sets it — so a photo-only change works
+// even when the name stays the same.
 export async function renameCategory(
   id: number,
   rawName: string,
+  rawImageUrl?: unknown,
 ): Promise<{ id: number; name: string }> {
   const { name, error } = validateCategoryName(rawName);
   if (!name) throw new CategoryInputError(error ?? 'Invalid category name.');
+  const changePhoto = rawImageUrl !== undefined;
+  const { imageUrl, error: imageError } = changePhoto
+    ? validateCategoryImageUrl(rawImageUrl)
+    : { imageUrl: undefined as string | undefined };
+  if (imageError) throw new CategoryInputError(imageError);
   await ensureCategorySchema();
   const current = await sql`
-    SELECT id, name FROM categories WHERE id = ${id} LIMIT 1
+    SELECT id, name, image_url FROM categories WHERE id = ${id} LIMIT 1
   `;
   if (current.rows.length === 0) {
     throw new CategoryInputError('Category not found.', 404);
   }
   const oldName = String(current.rows[0].name);
-  if (oldName === name) return { id, name };
-  const dup = await sql`
-    SELECT id FROM categories
-    WHERE LOWER(name) = LOWER(${name}) AND id <> ${id} LIMIT 1
-  `;
-  if (dup.rows.length > 0) {
-    throw new CategoryInputError(`A category named "${name}" already exists.`);
+  const oldImageUrl = String(current.rows[0].image_url ?? '');
+  const photoChanged = changePhoto && imageUrl !== oldImageUrl;
+  if (oldName === name && !photoChanged) return { id, name };
+  if (oldName !== name) {
+    const dup = await sql`
+      SELECT id FROM categories
+      WHERE LOWER(name) = LOWER(${name}) AND id <> ${id} LIMIT 1
+    `;
+    if (dup.rows.length > 0) {
+      throw new CategoryInputError(`A category named "${name}" already exists.`);
+    }
+    await assertSlugFree(slugifyCategory(name), id);
+    await sql`UPDATE categories SET name = ${name} WHERE id = ${id}`;
+    await sql`UPDATE products SET category = ${name} WHERE category = ${oldName}`;
   }
-  await assertSlugFree(slugifyCategory(name), id);
-  await sql`UPDATE categories SET name = ${name} WHERE id = ${id}`;
-  await sql`UPDATE products SET category = ${name} WHERE category = ${oldName}`;
+  if (photoChanged) {
+    await sql`UPDATE categories SET image_url = ${imageUrl ?? ''} WHERE id = ${id}`;
+  }
   return { id, name };
 }
 
@@ -576,6 +608,260 @@ export function resolveBlogImageValue(
   if (!match) return trimmed;
   if (Number(match[1]) !== postId || existing === null) return '';
   return existing;
+}
+
+// ---------- Design Editor (v6.3) ----------
+// Custom blocks live in their own table so the owner can add, edit and
+// delete them from Admin → Design. Same idempotent pattern as the
+// categories/blog migrations: CREATE TABLE IF NOT EXISTS, called lazily
+// by the Design page and the design APIs, so the feature works even if
+// the owner never visits /api/seed after the update. Theme, hero,
+// header, footer and home layout are JSON in the settings table (see
+// lib/design.ts) — no new tables needed for those.
+const DESIGN_SCHEMA_SQL = [
+  `CREATE TABLE IF NOT EXISTS design_blocks (
+    id SERIAL PRIMARY KEY,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL DEFAULT '',
+    content TEXT NOT NULL DEFAULT '{}',
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    visible BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+];
+
+let designSchemaPromise: Promise<void> | null = null;
+
+export function ensureDesignSchema(): Promise<void> {
+  if (!hasDb()) return Promise.resolve();
+  if (!designSchemaPromise) {
+    designSchemaPromise = (async () => {
+      for (const statement of DESIGN_SCHEMA_SQL) {
+        await sql.query(statement);
+      }
+    })().catch((err) => {
+      // Allow a later call to retry.
+      designSchemaPromise = null;
+      throw err;
+    });
+  }
+  return designSchemaPromise;
+}
+
+// Parse one design_blocks row. The content JSON is parsed defensively
+// (bad JSON becomes an empty object), and an uploaded (data URL) photo is
+// rewritten to the light /api/image route URL so page data never carries
+// base64 images.
+export function mapDesignBlock(row: Record<string, unknown>): DesignBlock {
+  const id = Number(row.id);
+  let content: DesignBlockContent = {};
+  const rawContent = String(row.content ?? '{}');
+  try {
+    const parsed: unknown = JSON.parse(rawContent);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      content = parsed as DesignBlockContent;
+    }
+  } catch {
+    content = {};
+  }
+  const typeRaw = String(row.type ?? '');
+  const type: DesignBlockType =
+    typeRaw === 'text' || typeRaw === 'image' || typeRaw === 'banner' || typeRaw === 'promo'
+      ? typeRaw
+      : 'text';
+  const rawImage = content.image ?? '';
+  return {
+    id,
+    type,
+    title: String(row.title ?? ''),
+    content: {
+      ...content,
+      image: rawImage.startsWith('data:') ? `/api/image?block=${id}` : rawImage,
+    },
+    sort_order: Number(row.sort_order ?? 0),
+    visible: Boolean(row.visible),
+    created_at: row.created_at ? String(row.created_at) : undefined,
+  };
+}
+
+// All custom blocks, in display order. Falls back to [] when the
+// database or the table is missing — the storefront simply shows no
+// custom blocks, exactly as before v6.3.
+export async function getDesignBlocks(): Promise<DesignBlock[]> {
+  if (!hasDb()) return [];
+  try {
+    const { rows } = await sql`
+      SELECT * FROM design_blocks ORDER BY sort_order ASC, id ASC
+    `;
+    return rows.map((r) => mapDesignBlock(r as Record<string, unknown>));
+  } catch {
+    return [];
+  }
+}
+
+export async function getDesignBlock(id: number): Promise<DesignBlock | null> {
+  if (!hasDb()) return null;
+  try {
+    const { rows } = await sql`
+      SELECT * FROM design_blocks WHERE id = ${id} LIMIT 1
+    `;
+    if (rows.length === 0) return null;
+    return mapDesignBlock(rows[0] as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+}
+
+// The whole design (theme, hero, header, footer, home layout) parsed from
+// the settings table. `blockIds` are the live block ids — the home layout
+// is sanitised against them, so items pointing at deleted blocks are
+// dropped. Callers that do not render the layout can pass [].
+export async function getDesign(blockIds: number[] = []): Promise<Design> {
+  const settings = await getSettings();
+  return parseDesign(settings, blockIds);
+}
+
+// Create a block. The new block goes last in display order.
+export async function createDesignBlock(input: {
+  type: DesignBlockType;
+  title: string;
+  content: DesignBlockContent;
+  visible: boolean;
+}): Promise<DesignBlock> {
+  await ensureDesignSchema();
+  const max = await sql`
+    SELECT COALESCE(MAX(sort_order), -1)::int AS max_order FROM design_blocks
+  `;
+  const sortOrder = Number(max.rows[0]?.max_order ?? -1) + 1;
+  const { rows } = await sql`
+    INSERT INTO design_blocks (type, title, content, sort_order, visible)
+    VALUES (${input.type}, ${input.title}, ${JSON.stringify(input.content)}, ${sortOrder}, ${input.visible})
+    RETURNING *
+  `;
+  return mapDesignBlock(rows[0] as Record<string, unknown>);
+}
+
+export async function updateDesignBlock(
+  id: number,
+  input: {
+    type: DesignBlockType;
+    title: string;
+    content: DesignBlockContent;
+    visible: boolean;
+  },
+): Promise<DesignBlock> {
+  await ensureDesignSchema();
+  const { rows } = await sql`
+    UPDATE design_blocks SET
+      type = ${input.type},
+      title = ${input.title},
+      content = ${JSON.stringify(input.content)},
+      visible = ${input.visible}
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  if (rows.length === 0) {
+    throw new Error('Block not found.');
+  }
+  return mapDesignBlock(rows[0] as Record<string, unknown>);
+}
+
+export async function deleteDesignBlock(id: number): Promise<void> {
+  await ensureDesignSchema();
+  const { rowCount } = await sql`DELETE FROM design_blocks WHERE id = ${id}`;
+  if ((rowCount ?? 0) === 0) {
+    throw new Error('Block not found.');
+  }
+}
+
+// Reorder blocks: the ids in their new display order. Only the listed
+// blocks are touched; anything unlisted keeps its order after them.
+export async function reorderDesignBlocks(ids: number[]): Promise<void> {
+  await ensureDesignSchema();
+  for (let i = 0; i < ids.length; i++) {
+    await sql`UPDATE design_blocks SET sort_order = ${i} WHERE id = ${ids[i]}`;
+  }
+}
+
+// Fetch the STORED photo value for one block — the raw data URL, not the
+// public /api/image URL that mapDesignBlock returns. Used by the
+// /api/image route to serve the binary, and by the admin update handler
+// to keep a photo the owner did not change.
+export async function getDesignBlockImageValue(
+  id: number,
+): Promise<string | null> {
+  if (!hasDb()) return null;
+  try {
+    const { rows } = await sql`
+      SELECT content FROM design_blocks WHERE id = ${id} LIMIT 1
+    `;
+    if (rows.length === 0) return null;
+    try {
+      const parsed: unknown = JSON.parse(String(rows[0].content ?? '{}'));
+      if (parsed && typeof parsed === 'object') {
+        return String((parsed as Record<string, unknown>).image ?? '');
+      }
+    } catch {
+      return '';
+    }
+    return '';
+  } catch {
+    return null;
+  }
+}
+
+// Resolve one block photo value coming back from the admin form. An
+// /api/image URL means "keep the stored photo" (the form shows stored
+// photos through the route, so an untouched photo comes back as a route
+// URL). Data URLs (fresh uploads) and remote URLs (pasted links) are
+// stored as-is. A route URL for a different block is dropped.
+export function resolveBlockImageValue(
+  value: string,
+  blockId: number,
+  existing: string | null,
+): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  const match = /^\/api\/image\?block=(\d+)$/.exec(trimmed);
+  if (!match) return trimmed;
+  if (Number(match[1]) !== blockId || existing === null) return '';
+  return existing;
+}
+
+// Fetch the STORED photo value for one hero slide — the raw data URL from
+// the design_hero settings JSON, not the public /api/image URL the
+// storefront uses. Used by the /api/image route to serve the binary.
+export async function getHeroImageValue(index: number): Promise<string | null> {
+  if (!hasDb()) return null;
+  try {
+    const settings = await getSettings();
+    const hero = parseDesign(settings, []).hero;
+    return hero.slides[index]?.image ?? '';
+  } catch {
+    return null;
+  }
+}
+
+// Resolve one hero slide photo value coming back from the admin form.
+// Same keep-the-photo marker as blocks: an /api/image?hero=N URL means
+// "keep the stored photo from slide N". The marker's own index is used —
+// not the slide's new position — so deleting or reordering a slide keeps
+// the other slides' photos.
+export function resolveHeroImageValue(
+  value: string,
+  existingSlides: { image: string }[],
+): string {
+  if (!value) return '';
+  const trimmed = value.trim();
+  const match = /^\/api\/image\?hero=(\d+)$/.exec(trimmed);
+  if (!match) return trimmed;
+  return existingSlides[Number(match[1])]?.image ?? '';
+}
+
+// Delete a settings key entirely — used by "Reset to default", which
+// restores the built-in design by removing the owner's overrides.
+export async function deleteSetting(key: string): Promise<void> {
+  await sql`DELETE FROM settings WHERE key = ${key}`;
 }
 
 // Parse the gallery JSON column into an array of image strings. Returns

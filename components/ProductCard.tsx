@@ -46,7 +46,7 @@ export default function ProductCard({ product }: { product: Product }) {
   };
 
   return (
-    <article className="product-card">
+    <article className="product-card" data-reveal>
       <Link href={`/product/${product.id}`} className="pc-image-wrap">
         <img
           src={imageSrc(product)}

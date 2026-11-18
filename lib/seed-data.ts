@@ -582,30 +582,5 @@ export const SEED_PRODUCTS: SeedProduct[] = [
   },
 ];
 
-// Hero carousel slides (Unsplash images, verified HTTP 200).
-export const HERO_SLIDES = [
-  {
-    image:
-      'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=1600&q=80',
-    title: 'Mega Sale — Up to 45% Off',
-    subtitle: 'Kitchen, home, fashion & more. Quality products at honest prices.',
-    cta: 'Shop Best Sellers',
-    href: '/#best-sellers',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&q=80',
-    title: 'Everything For Your Home',
-    subtitle: '10 categories, 100s of products — delivered to your doorstep.',
-    cta: 'Browse Categories',
-    href: '/#categories',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=1600&q=80',
-    title: 'Cash on Delivery Across Pakistan',
-    subtitle: 'Order now, pay when your parcel arrives. Free delivery over Rs 7,000.',
-    cta: 'Shop New Arrivals',
-    href: '/#new-arrivals',
-  },
-];
+// The hero carousel slides moved to lib/design.ts in v6.3 (HERO_SLIDES) —
+// they are design defaults now, editable from Admin → Design.

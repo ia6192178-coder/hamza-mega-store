@@ -63,13 +63,51 @@ export type Order = {
 
 export type Settings = Record<string, string>;
 
+// One custom design block (v6.3) — a content block the owner adds from
+// Admin → Design. It renders on the home page in the position the home
+// layout gives it. `content` holds only the fields its type uses:
+//   text:   { heading, body }
+//   image:  { image, link, caption }
+//   banner: { image, heading, subtext, button_text, button_link }
+//   promo:  { text, bg_color }
+// `image` is either a remote URL or a /api/image route URL — the database
+// stores uploaded photos as base64 data URLs, but those are never sent to
+// the browser in page data (see mapDesignBlock in lib/db.ts).
+export type DesignBlockType = 'text' | 'image' | 'banner' | 'promo';
+
+export type DesignBlockContent = {
+  heading?: string;
+  body?: string;
+  image?: string;
+  link?: string;
+  caption?: string;
+  subtext?: string;
+  button_text?: string;
+  button_link?: string;
+  text?: string;
+  bg_color?: string;
+};
+
+export type DesignBlock = {
+  id: number;
+  type: DesignBlockType;
+  title: string;
+  content: DesignBlockContent;
+  sort_order: number;
+  visible: boolean;
+  created_at?: string;
+};
+
 // One category from the `categories` table (v4), with how many products
 // use it. `id` is 0 for fallback entries (built-in list, no database).
+// `image_url` (v6.2) is the category's own photo — a compressed data URL
+// uploaded in the Admin Panel, or a pasted https link; '' when none is set.
 export type CategoryWithCount = {
   id: number;
   name: string;
   slug: string;
   count: number;
+  image_url: string;
 };
 
 // One blog post (v5). `id` is 0 for fallback entries (the 3 original
@@ -148,6 +186,26 @@ export function blogImageSrc(post: BlogPost): string {
     return `/api/image?post=${post.id}`;
   }
   return post.image_url;
+}
+
+// ---------- Design block image helper (v6.3) ----------
+
+/**
+ * Display URL for a block's photo. Uploaded photos are stored in the
+ * database as base64 data URLs — those are served through the /api/image
+ * route so the page HTML stays light. Remote URLs (e.g. Unsplash) are
+ * used as-is. (Server-side, mapDesignBlock already rewrites data URLs to
+ * route URLs, so the 'data:' branch here is a safety net for any raw
+ * value that slips through, e.g. a freshly uploaded photo in the admin
+ * form.)
+ */
+export function blockImageSrc(block: DesignBlock): string {
+  const raw = block.content.image ?? '';
+  if (!raw) return '';
+  if (raw.startsWith('data:')) {
+    return `/api/image?block=${block.id}`;
+  }
+  return raw;
 }
 
 // ---------- Variant helpers ----------

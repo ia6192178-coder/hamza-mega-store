@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import {
   getBlogPostImageValue,
+  getDesignBlockImageValue,
+  getHeroImageValue,
   getProductImageValues,
   hasDb,
 } from '@/lib/db';
@@ -15,6 +17,12 @@ export const dynamic = 'force-dynamic';
 // the browser is redirected straight to it.
 //
 // GET /api/image?post=<id> — the same, for a blog post photo (v5).
+//
+// GET /api/image?hero=<index> — the same, for a hero slide photo (v6.3),
+// stored in the design_hero settings JSON.
+//
+// GET /api/image?block=<id> — the same, for a custom design block photo
+// (v6.3), stored in the design_blocks table.
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   if (!hasDb()) {
@@ -29,6 +37,28 @@ export async function GET(req: Request) {
       return new NextResponse('Not found', { status: 404 });
     }
     const raw = await getBlogPostImageValue(postId);
+    return serveImageValue(raw);
+  }
+
+  // Hero slide photo (v6.3).
+  const heroParam = searchParams.get('hero');
+  if (heroParam !== null) {
+    const index = Number(heroParam);
+    if (!Number.isFinite(index) || index < 0) {
+      return new NextResponse('Not found', { status: 404 });
+    }
+    const raw = await getHeroImageValue(index);
+    return serveImageValue(raw);
+  }
+
+  // Custom design block photo (v6.3).
+  const blockParam = searchParams.get('block');
+  if (blockParam !== null) {
+    const blockId = Number(blockParam);
+    if (!Number.isFinite(blockId) || blockId <= 0) {
+      return new NextResponse('Not found', { status: 404 });
+    }
+    const raw = await getDesignBlockImageValue(blockId);
     return serveImageValue(raw);
   }
 

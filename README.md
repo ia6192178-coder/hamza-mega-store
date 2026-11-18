@@ -140,14 +140,54 @@ When you receive an updated project ZIP from your developer:
    new version (e.g. `"version": "6.0.0"`). If it shows an old version
    or 404, the new code did not go live — re-upload the ZIP.
 6. Open your `/api/seed` link once ONLY if the update notes say a new
-   table or setting was added (v6 adds none, so no seed run is needed).
+   table or setting was added (v6.2 adds a category photo column and v6.3
+   adds a design blocks table, but both are created automatically when
+   the Admin Panel opens — no seed run is needed).
    **Your existing products and orders are kept — nothing is deleted or
    duplicated.**
 7. Open your website and check that everything still works.
 
 Each new version includes everything from the earlier ones — so if you
 skipped a version (for example you never applied v4), just apply the
-latest one (v6) and you get all of it.
+latest one (v6.3) and you get all of it.
+
+### Design Editor (v6.3)
+
+In the Admin Panel, **Design** lets you change how the whole store looks
+— no code needed. Everything appears on the store immediately:
+
+- **Theme Colours** — primary, accent, header and button colours.
+- **Header & Announcement Bar** — the announcement text (it scrolls
+  right to left across the top of every page) and show/hide.
+- **Hero Banner** — the home page slideshow: change each slide's photo,
+  headline, subtext and button, add or remove slides (up to 4), or hide
+  the banner.
+- **Home Page Layout** — the order of everything on the home page, top
+  to bottom: move sections and blocks up/down with the arrows, show or
+  hide each one with the eye button.
+- **Custom Blocks** — add your own content blocks to the home page:
+  Text, Image, Banner (full-width photo with a headline and button) or
+  Promo Strip (a coloured message bar). A new block appears at the end
+  of the home page — move it in the Layout list.
+- **Footer** — the about text and which footer columns show.
+- **Reset to Default** — puts the whole design back to the built-in
+  look. Your custom blocks are kept and moved to the end of the home
+  page.
+
+v6.3 also adds smooth animations across the store: sections and product
+cards fade/slide in as you scroll, cards lift and photos zoom gently on
+hover, and the cart drawer, menus and dialogs glide in. The animations
+switch off automatically for visitors who prefer reduced motion.
+
+### Category photos (v6.2)
+
+In the Admin Panel, **Categories** — click any category (or **+ Add
+Category**) and a dialog opens where you can change its name and add its
+own photo: upload a photo from your phone/computer (it is compressed
+automatically, like product photos) or paste an image link. The photo
+shows on the category's tile on the home page and as a banner at the
+top of its page. A category without a photo keeps showing its first
+product's photo on the tile, as before.
 
 ### Instant category updates (v6)
 

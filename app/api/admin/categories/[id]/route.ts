@@ -35,7 +35,12 @@ export async function PUT(req: Request, { params }: RouteContext) {
   }
   try {
     const body = await req.json();
-    const category = await renameCategory(id, String(body.name ?? ''));
+    // image_url absent = keep the current photo; '' = remove it.
+    const category = await renameCategory(
+      id,
+      String(body.name ?? ''),
+      body.image_url,
+    );
     // Renamed category must update for customers at once.
     revalidateStorefront();
     return NextResponse.json({ ok: true, category });

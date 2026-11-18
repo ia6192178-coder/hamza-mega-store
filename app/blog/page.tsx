@@ -31,6 +31,7 @@ export default async function BlogPage() {
               key={post.slug}
               href={`/blog/${post.slug}`}
               className="blog-card"
+              data-reveal
             >
               {post.image_url ? (
                 <img
