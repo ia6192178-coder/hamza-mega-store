@@ -12,6 +12,7 @@ import {
   saveProductVariants,
 } from '@/lib/db';
 import { parseProductBody } from '@/lib/product-input';
+import { revalidateStorefront } from '@/lib/revalidate';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,8 @@ export async function PUT(req: Request, { params }: RouteContext) {
     // simple again). The schema guard covers a missed /api/seed run.
     await saveProductVariants(id, product.variants);
     const updated = await getProduct(id);
+    // Edited product must update for customers at once.
+    revalidateStorefront();
     return NextResponse.json({ ok: true, product: updated });
   } catch (err) {
     return NextResponse.json(
@@ -105,6 +108,8 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
     if ((rowCount ?? 0) === 0) {
       return NextResponse.json({ error: 'Product not found.' }, { status: 404 });
     }
+    // Deleted product must disappear for customers at once.
+    revalidateStorefront();
     return NextResponse.json({ ok: true });
   } catch (err) {
     return NextResponse.json(

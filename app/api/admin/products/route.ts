@@ -12,6 +12,7 @@ import {
   saveProductVariants,
 } from '@/lib/db';
 import { parseProductBody } from '@/lib/product-input';
+import { revalidateStorefront } from '@/lib/revalidate';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,6 +74,8 @@ export async function POST(req: Request) {
     // Save the variant rows (empty list = simple product).
     await saveProductVariants(newId, product.variants);
     const created = await getProduct(newId);
+    // New product must show to customers at once (home, category page).
+    revalidateStorefront();
     return NextResponse.json({ ok: true, product: created }, { status: 201 });
   } catch (err) {
     return NextResponse.json(

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { isAdminLoggedIn } from '@/lib/admin';
 import { CategoryInputError } from '@/lib/categories';
 import { deleteCategory, hasDb, renameCategory } from '@/lib/db';
+import { revalidateStorefront } from '@/lib/revalidate';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,8 @@ export async function PUT(req: Request, { params }: RouteContext) {
   try {
     const body = await req.json();
     const category = await renameCategory(id, String(body.name ?? ''));
+    // Renamed category must update for customers at once.
+    revalidateStorefront();
     return NextResponse.json({ ok: true, category });
   } catch (err) {
     const status = err instanceof CategoryInputError ? err.status : 500;
@@ -54,6 +57,8 @@ export async function DELETE(_req: Request, { params }: RouteContext) {
   }
   try {
     await deleteCategory(id);
+    // Deleted category must disappear for customers at once.
+    revalidateStorefront();
     return NextResponse.json({ ok: true });
   } catch (err) {
     const status = err instanceof CategoryInputError ? err.status : 500;

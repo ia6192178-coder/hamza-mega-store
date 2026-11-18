@@ -163,7 +163,12 @@ export async function getCategories(): Promise<string[]> {
     const { rows } = await sql`SELECT name FROM categories ORDER BY id ASC`;
     if (rows.length === 0) return [...CATEGORIES];
     return rows.map((r) => String(r.name));
-  } catch {
+  } catch (err) {
+    // Log it: a silent fallback would hide a live category (e.g. a new
+    // admin-created one) behind the built-in list. Check the Vercel
+    // function logs if a new category ever fails to appear on the
+    // storefront.
+    console.error('[getCategories] DB read failed, using built-in list:', err);
     return [...CATEGORIES];
   }
 }
@@ -210,7 +215,11 @@ export async function getCategoriesWithCounts(): Promise<CategoryWithCount[]> {
         count: counts.get(name) ?? 0,
       };
     });
-  } catch {
+  } catch (err) {
+    console.error(
+      '[getCategoriesWithCounts] DB read failed, using built-in list:',
+      err,
+    );
     return fallback();
   }
 }

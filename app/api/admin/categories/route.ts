@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { isAdminLoggedIn } from '@/lib/admin';
 import { CategoryInputError } from '@/lib/categories';
+import { revalidateStorefront } from '@/lib/revalidate';
 import {
   createCategory,
   ensureCategorySchema,
@@ -39,6 +40,9 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const category = await createCategory(String(body.name ?? ''));
+    // A new category must show to customers at once (home tiles, header
+    // dropdown, category page) — purge the cached storefront pages.
+    revalidateStorefront();
     // `existed: true` means the name was already there (case-insensitive)
     // — the caller just uses the existing category.
     return NextResponse.json(

@@ -119,7 +119,7 @@ Your domain is at Hostinger. To use it for this website:
   developer). Vercel automatically re-deploys the website whenever the
   GitHub repository changes.
 
-### Updating your live site with a new version (e.g. v5)
+### Updating your live site with a new version (e.g. v6)
 
 When you receive an updated project ZIP from your developer:
 
@@ -128,18 +128,34 @@ When you receive an updated project ZIP from your developer:
    **Upload files**.
 3. Select **ALL** files and folders from the new project folder and drag
    them in — this **overwrites** the old files with the new version.
-   Click **Commit changes**.
+   Click **Commit changes**. Upload every folder (`app`, `components`,
+   `lib`) — uploading only part of the ZIP leaves old code live, and the
+   storefront can keep showing old data.
 4. Vercel will **automatically re-deploy** the website (1–2 minutes).
-   No new project is needed.
-5. When the deployment finishes, open your `/api/seed` link once
-   (e.g. `https://www.hamzamegastore.com/api/seed`). This creates the new
-   database tables/columns for the update. **Your existing products and
-   orders are kept — nothing is deleted or duplicated.**
-6. Open your website and check that everything still works.
+   No new project is needed. Check the Vercel **Deployments** tab: the
+   latest deployment must say **Ready** — if it says **Failed**, the old
+   version stays live.
+5. When the deployment finishes, open your `/api/version` link
+   (e.g. `https://www.hamzamegastore.com/api/version`) — it must show the
+   new version (e.g. `"version": "6.0.0"`). If it shows an old version
+   or 404, the new code did not go live — re-upload the ZIP.
+6. Open your `/api/seed` link once ONLY if the update notes say a new
+   table or setting was added (v6 adds none, so no seed run is needed).
+   **Your existing products and orders are kept — nothing is deleted or
+   duplicated.**
+7. Open your website and check that everything still works.
 
 Each new version includes everything from the earlier ones — so if you
 skipped a version (for example you never applied v4), just apply the
-latest one (v5) and you get all of it.
+latest one (v6) and you get all of it.
+
+### Instant category updates (v6)
+
+When you add, rename or delete a category in the Admin Panel, the
+storefront updates **immediately** — the home page "Shop by Category"
+tiles, the "All Categories" dropdown, the footer links and the category
+page itself. No re-deploy and no waiting: every admin category or
+product change purges the cached storefront pages at once.
 
 ### Product variants (sizes, colours, weights)
 
